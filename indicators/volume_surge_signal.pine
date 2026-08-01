@@ -1,0 +1,23 @@
+//@version=5
+indicator("出来高急増シグナル (Rule A)", overlay=true)
+
+// 1. 直近10営業日の「平均出来高」を計算する
+// 過去10日間の出来高の単純移動平均（SMA）を計算。
+vol_length = input.int(10, title="平均出来高の期間", minval=1)
+vol_ma = ta.sma(volume, vol_length)
+
+// 2. 「当日の出来高」が、その過去10日間の平均出来高の【3倍以上】に急増している
+// 判定用の倍率（デフォルト3.0倍）をインプットで設定可能にする。
+vol_multiplier = input.float(3.0, title="出来高急増の倍率", minval=1.0)
+is_vol_surge = volume >= (vol_ma * vol_multiplier)
+
+// 3. 「当日の終値（株価）」が、前日の終値よりも高くなっている（値上がりしている）
+// close: 当日終値、close[1]: 前日終値
+is_price_up = close > close[1]
+
+// 上記3つの条件を全て満たしているか判定
+buy_signal = is_vol_surge and is_price_up
+
+// 条件を満たした日のローソク足の下にシグナルを表示
+// チャート背景に合わせて見やすいように、色は明るいライム色、文字は白色に変更
+plotshape(series=buy_signal, title="買いシグナル", location=location.belowbar, color=color.lime, style=shape.triangleup, size=size.small, text="買", textcolor=color.white)

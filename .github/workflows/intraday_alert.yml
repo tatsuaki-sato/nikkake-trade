@@ -1,0 +1,30 @@
+name: Intraday Alert (Real-time)
+
+on:
+  schedule:
+    # JST 09:00-15:59 -> UTC 00:00-06:59 (平日のみ)
+    - cron: '*/5 0-6 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  run-intraday-alert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        
+      - name: Run Intraday Alert
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python modules/real_time/intraday_alert.py
