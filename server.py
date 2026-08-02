@@ -1,6 +1,7 @@
 import os
 import json
 import uvicorn
+import threading
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -16,6 +17,19 @@ from common.performance_tracker import (
 from common.stock_names import get_company_name
 
 app = FastAPI(title="nikkake-trade - AI Signal & Real Portfolio Web App")
+
+@app.on_event("startup")
+async def startup_event():
+    """
+    サーバー起動時に自動でyfinance株価取得・損益更新を実行（バックグラウンド）
+    これにより current_price / pnl_yen が常に最新になる
+    """
+    def run_update():
+        try:
+            update_signal_performance(force_refresh=True)
+        except Exception as e:
+            print(f"Startup update error: {e}")
+    threading.Thread(target=run_update, daemon=True).start()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_FILE = os.path.join(BASE_DIR, "index.html")
