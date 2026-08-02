@@ -16,7 +16,7 @@
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>🤖 trade - AI Signal & Real Portfolio Dashboard</h2>
-            <span class="badge bg-primary fs-6">更新: 2026-08-02 23:41</span>
+            <span class="badge bg-primary fs-6">更新: 08-02 23:48</span>
         </div>
 
         <ul class="nav nav-tabs mb-4 fs-5" id="myTab" role="tablist">
@@ -42,8 +42,8 @@
                     <div class="col-md-4">
                         <div class="card card-stat bg-white p-3 text-center">
                             <div class="text-muted">確定累積損益 (100株計)</div>
-                            <div class="display-5 text-success fw-bold" id="aiReturnText">+0円</div>
-                            <small id="aiReturnPctText">全決済リターン通算: +18.0%</small>
+                            <div class="display-5 text-success fw-bold" id="aiReturnText">+6,700円</div>
+                            <small id="aiReturnPctText">全決済リターン通算: +2.2%</small>
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -177,7 +177,7 @@
     </div>
 
     <script>
-        const serverHistory = [{"id": "7203.T_2026-08-02", "date": "2026-08-02", "ticker": "7203", "entry_price": 3000.0, "target_price": 3270.0, "stop_loss_price": 2820.0, "score": 85, "status": "LOSS", "current_price": 3067.0, "max_price": 3233.0, "min_price": 2708.0, "return_pct": -6.0, "details": {"Residual_Momentum": "テスト"}, "close_date": "2026-08-02"}, {"id": "8035_2026-08-02", "date": "2026-08-02", "ticker_code": "8035", "name": "8035 東京エレクトロン", "entry_price": 55500.0, "sim_amount": 5550000.0, "target_price": 58830.0, "stop_loss_price": 53280.0, "score": 65, "status": "WIN", "current_price": 55500.0, "max_price": 81260.0, "min_price": 48580.0, "return_pct": 6.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02"}, {"id": "6920_2026-08-02", "date": "2026-08-02", "ticker_code": "6920", "name": "6920 レーザーテック", "entry_price": 37910.0, "sim_amount": 3791000.0, "target_price": 40184.6, "stop_loss_price": 36393.6, "score": 65, "status": "WIN", "current_price": 37910.0, "max_price": 54080.0, "min_price": 33200.0, "return_pct": 6.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02"}, {"id": "6857_2026-08-02", "date": "2026-08-02", "ticker_code": "6857", "name": "6857 アドバンテスト", "entry_price": 32500.0, "sim_amount": 3250000.0, "target_price": 34450.0, "stop_loss_price": 31200.0, "score": 65, "status": "LOSS", "current_price": 32500.0, "max_price": 34200.0, "min_price": 24135.0, "return_pct": -4.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02"}, {"id": "9984_2026-08-02", "date": "2026-08-02", "ticker_code": "9984", "name": "9984 ソフトバンクグループ", "entry_price": 5260.0, "sim_amount": 526000.0, "target_price": 5575.6, "stop_loss_price": 5049.6, "score": 65, "status": "WIN", "current_price": 5260.0, "max_price": 6660.0, "min_price": 4500.0, "return_pct": 6.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02"}, {"id": "6702_2026-08-02", "date": "2026-08-02", "ticker_code": "6702", "name": "6702 富士通", "entry_price": 3659.0, "sim_amount": 365900.0, "target_price": 3878.54, "stop_loss_price": 3512.64, "score": 65, "status": "WIN", "current_price": 3659.0, "max_price": 3928.0, "min_price": 3181.0, "return_pct": 6.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02"}, {"id": "6701_2026-08-02", "date": "2026-08-02", "ticker_code": "6701", "name": "6701 NEC", "entry_price": 4740.0, "sim_amount": 474000.0, "target_price": 5024.4, "stop_loss_price": 4550.4, "score": 65, "status": "WIN", "current_price": 4740.0, "max_price": 5104.0, "min_price": 3912.0, "return_pct": 6.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02"}, {"id": "7203_2026-08-02", "date": "2026-08-02", "ticker_code": "7203", "name": "7203 トヨタ自動車", "entry_price": 3067.0, "sim_amount": 306700.0, "target_price": 3251.02, "stop_loss_price": 2944.32, "score": 65, "status": "LOSS", "current_price": 3067.0, "max_price": 3233.0, "min_price": 2708.0, "return_pct": -4.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02"}, {"id": "8306_2026-08-02", "date": "2026-08-02", "ticker_code": "8306", "name": "8306 三菱UFJフィナンシャルG", "entry_price": 3571.0, "sim_amount": 357100.0, "target_price": 3785.26, "stop_loss_price": 3428.16, "score": 65, "status": "WIN", "current_price": 3571.0, "max_price": 3813.0, "min_price": 3207.0, "return_pct": 6.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02"}, {"id": "9432_2026-08-02", "date": "2026-08-02", "ticker_code": "9432", "name": "9432 NTT (日本電信電話)", "entry_price": 152.39999389648438, "sim_amount": 15239.999389648438, "target_price": 161.54399353027344, "stop_loss_price": 146.303994140625, "score": 65, "status": "LOSS", "current_price": 152.39999389648438, "max_price": 161.1999969482422, "min_price": 142.60000610351562, "return_pct": -4.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02"}];
+        const serverHistory = [{"id": "7203.T_2026-08-02", "date": "08-02 15:30", "ticker": "7203", "entry_price": 3000.0, "target_price": 3270.0, "stop_loss_price": 2820.0, "score": 85, "status": "LOSS", "current_price": 3067.0, "max_price": 3233.0, "min_price": 2708.0, "return_pct": 2.23, "details": {"Residual_Momentum": "テスト"}, "close_date": "2026-08-02", "pnl_yen": 6700.0, "closed_at": "08-02 23:48"}, {"id": "8035_2026-08-02", "date": "08-02 15:30", "ticker_code": "8035", "name": "8035 東京エレクトロン", "entry_price": 55500.0, "sim_amount": 5550000.0, "target_price": 58830.0, "stop_loss_price": 53280.0, "score": 65, "status": "WIN", "current_price": 55500.0, "max_price": 81260.0, "min_price": 48580.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "6920_2026-08-02", "date": "08-02 15:30", "ticker_code": "6920", "name": "6920 レーザーテック", "entry_price": 37910.0, "sim_amount": 3791000.0, "target_price": 40184.6, "stop_loss_price": 36393.6, "score": 65, "status": "WIN", "current_price": 37910.0, "max_price": 54080.0, "min_price": 33200.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "6857_2026-08-02", "date": "08-02 15:30", "ticker_code": "6857", "name": "6857 アドバンテスト", "entry_price": 32500.0, "sim_amount": 3250000.0, "target_price": 34450.0, "stop_loss_price": 31200.0, "score": 65, "status": "LOSS", "current_price": 32500.0, "max_price": 34200.0, "min_price": 24135.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "9984_2026-08-02", "date": "08-02 15:30", "ticker_code": "9984", "name": "9984 ソフトバンクグループ", "entry_price": 5260.0, "sim_amount": 526000.0, "target_price": 5575.6, "stop_loss_price": 5049.6, "score": 65, "status": "WIN", "current_price": 5260.0, "max_price": 6660.0, "min_price": 4500.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "6702_2026-08-02", "date": "08-02 15:30", "ticker_code": "6702", "name": "6702 富士通", "entry_price": 3659.0, "sim_amount": 365900.0, "target_price": 3878.54, "stop_loss_price": 3512.64, "score": 65, "status": "WIN", "current_price": 3659.0, "max_price": 3928.0, "min_price": 3181.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "6701_2026-08-02", "date": "08-02 15:30", "ticker_code": "6701", "name": "6701 NEC", "entry_price": 4740.0, "sim_amount": 474000.0, "target_price": 5024.4, "stop_loss_price": 4550.4, "score": 65, "status": "WIN", "current_price": 4740.0, "max_price": 5104.0, "min_price": 3912.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "7203_2026-08-02", "date": "08-02 15:30", "ticker_code": "7203", "name": "7203 トヨタ自動車", "entry_price": 3067.0, "sim_amount": 306700.0, "target_price": 3251.02, "stop_loss_price": 2944.32, "score": 65, "status": "LOSS", "current_price": 3067.0, "max_price": 3233.0, "min_price": 2708.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "8306_2026-08-02", "date": "08-02 15:30", "ticker_code": "8306", "name": "8306 三菱UFJフィナンシャルG", "entry_price": 3571.0, "sim_amount": 357100.0, "target_price": 3785.26, "stop_loss_price": 3428.16, "score": 65, "status": "WIN", "current_price": 3571.0, "max_price": 3813.0, "min_price": 3207.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "9432_2026-08-02", "date": "08-02 15:30", "ticker_code": "9432", "name": "9432 NTT (日本電信電話)", "entry_price": 152.39999389648438, "sim_amount": 15239.999389648438, "target_price": 161.54399353027344, "stop_loss_price": 146.303994140625, "score": 65, "status": "LOSS", "current_price": 152.4, "max_price": 161.2, "min_price": 142.6, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}];
         const serverPortfolio = [];
         
         function getLocalHistory() {
@@ -204,6 +204,20 @@
         function saveLocalPortfolio(data) {
             localStorage.setItem('user_real_portfolio', JSON.stringify(data));
             renderRealPortfolio();
+        }
+
+        function formatNoYear(dtStr) {
+            if (!dtStr || dtStr === '-') return '-';
+            // 2026-08-02 15:30 -> 08-02 15:30
+            if (dtStr.length >= 10 && dtStr.includes('-')) {
+                const parts = dtStr.split(' ');
+                const ymd = parts[0].split('-');
+                if (ymd.length === 3) {
+                    const timePart = parts[1] || '';
+                    return `${ymd[1]}-${ymd[2]} ${timePart}`.trim();
+                }
+            }
+            return dtStr;
         }
 
         function renderAIHistory() {
@@ -238,9 +252,13 @@
                 
                 let pnlYen = item.pnl_yen !== undefined ? parseFloat(item.pnl_yen) : (currP - entryP) * 100;
                 if (st === 'WIN') { pnlYen = (targetP - entryP) * 100; }
-                else if (st === 'LOSS') { pnlYen = (stopP - entryP) * 100; }
+                else if (st === 'LOSS') { pnlYen = (stopP - entry_price) * 100; }
 
-                const closedAt = item.closed_at || '-';
+                const dtFormatted = formatNoYear(item.date);
+                let closedAtFormatted = formatNoYear(item.closed_at);
+                if ((st === 'WIN' || st === 'LOSS') && closedAtFormatted === '-') {
+                    closedAtFormatted = dtFormatted; // 確定している場合は日時を表示
+                }
                 
                 if (st === 'WIN') { wins++; totalClosed++; totalReturnPct += retP; totalPnlYen += pnlYen; }
                 else if (st === 'LOSS') { losses++; totalClosed++; totalReturnPct += retP; totalPnlYen += pnlYen; }
@@ -254,7 +272,7 @@
 
                 tbody.innerHTML += `
                     <tr>
-                        <td><small>${item.date || '-'}</small></td>
+                        <td><small class="fw-bold">${dtFormatted}</small></td>
                         <td><strong>${item.name || item.ticker_code || item.ticker}</strong></td>
                         <td><span class="badge bg-secondary">${item.score || 60}点</span></td>
                         <td>${entryP.toLocaleString()}円</td>
@@ -264,7 +282,7 @@
                         <td>${currP.toLocaleString()}円</td>
                         <td class="${retCls}"><strong>${retSign}${Math.round(pnlYen).toLocaleString()}円 (${retSign}${retP.toFixed(2)}%)</strong></td>
                         <td>${badge}</td>
-                        <td><small class="text-muted">${closedAt}</small></td>
+                        <td><small class="text-muted">${closedAtFormatted}</small></td>
                     </tr>
                 `;
             });
@@ -311,10 +329,11 @@
 
                 const pnlCls = pnlY >= 0 ? 'text-success' : 'text-danger';
                 const pnlSign = pnlY >= 0 ? '+' : '';
+                const bDtFormatted = formatNoYear(item.buy_date);
 
                 tbody.innerHTML += `
                     <tr>
-                        <td><small>${item.buy_date || '-'}</small></td>
+                        <td><small class="fw-bold">${bDtFormatted}</small></td>
                         <td><strong>${item.name || item.ticker}</strong></td>
                         <td>${buyP.toLocaleString()}円</td>
                         <td>${shares.toLocaleString()}株</td>

@@ -41,12 +41,12 @@ def save_real_portfolio(portfolio: list):
 
 def record_signal(ticker: str, entry_price: float, target_price: float, stop_loss_price: float, score: int, details: dict):
     history = load_history()
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+    now_str = datetime.now().strftime("%m-%d %H:%M") # 年なし、月日 時分 (MM-DD HH:MM)
     today_date = datetime.now().strftime("%Y-%m-%d")
     code = ticker.replace('.T', '').strip()
     
     for item in history:
-        if item.get("ticker_code") == code and item.get("date", "").startswith(today_date):
+        if item.get("ticker_code") == code and item.get("date", "").startswith(datetime.now().strftime("%m-%d")):
             return
             
     name = get_company_name(code)
@@ -57,16 +57,16 @@ def record_signal(ticker: str, entry_price: float, target_price: float, stop_los
         "date": now_str,
         "ticker_code": code,
         "name": name,
-        "entry_price": entry_price,
+        "entry_price": round(entry_price, 1),
         "sim_amount": sim_amount,
-        "target_price": target_price,
-        "stop_loss_price": stop_loss_price,
+        "target_price": round(target_price, 1),
+        "stop_loss_price": round(stop_loss_price, 1),
         "score": score,
         "status": "OPEN",
         "closed_at": "-",
-        "current_price": entry_price,
-        "max_price": entry_price,
-        "min_price": entry_price,
+        "current_price": round(entry_price, 1),
+        "max_price": round(entry_price, 1),
+        "min_price": round(entry_price, 1),
         "return_pct": 0.0,
         "pnl_yen": 0.0,
         "details": details
@@ -80,7 +80,7 @@ def update_signal_performance():
     
     all_tickers = []
     if history:
-        all_tickers.extend([item.get("ticker_code", item.get("ticker", "")) + ".T" for item in history if item.get("status") == "OPEN"])
+        all_tickers.extend([item.get("ticker_code", item.get("ticker", "")) + ".T" for item in history])
     if real_portfolio:
         all_tickers.extend([item.get("ticker", "") + ".T" for item in real_portfolio])
         
@@ -96,12 +96,20 @@ def update_signal_performance():
         generate_html_dashboard(history, real_portfolio)
         return
 
-    now_time_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+    now_time_str = datetime.now().strftime("%m-%d %H:%M")
 
     for item in history:
-        if item.get("status") != "OPEN":
-            continue
-            
+        # 年を削除したフォーマット (例: 08-02 23:12)
+        dt_val = item.get("date", "")
+        if " " in dt_val and len(dt_val.split()[0].split("-")) == 3:
+            # 2026-08-02 15:30 -> 08-02 15:30
+            parts = dt_val.split()
+            ymd = parts[0].split("-")
+            item["date"] = f"{ymd[1]}-{ymd[2]} {parts[1]}"
+        elif len(dt_val.split("-")) == 3:
+            ymd = dt_val.split("-")
+            item["date"] = f"{ymd[1]}-{ymd[2]} 15:30"
+
         code = item.get("ticker_code", item.get("ticker", ""))
         symbol = code + ".T"
         try:
@@ -113,31 +121,32 @@ def update_signal_performance():
             target_p = item["target_price"]
             stop_p = item["stop_loss_price"]
             
-            signal_date_str = item["date"].split()[0]
-            df_after = df[df.index >= signal_date_str]
-            if df_after.empty:
-                df_after = df
-                
-            high_price = float(df_after["High"].max())
-            low_price = float(df_after["Low"].min())
-            latest_close = float(df_after["Close"].iloc[-1])
+            high_price = float(df["High"].max())
+            low_price = float(df["Low"].min())
+            latest_close = float(df["Close"].iloc[-1])
             
-            item["current_price"] = latest_close
-            item["max_price"] = max(item.get("max_price", entry_p), high_price)
-            item["min_price"] = min(item.get("min_price", entry_p), low_price)
+            item["current_price"] = round(latest_close, 1)
+            item["max_price"] = round(max(item.get("max_price", entry_p), high_price), 1)
+            item["min_price"] = round(min(item.get("min_price", entry_p), low_price), 1)
             item["return_pct"] = round(((latest_close - entry_p) / entry_p) * 100, 2)
             item["pnl_yen"] = round((latest_close - entry_p) * 100, 0)
             
-            if low_price <= stop_p:
-                item["status"] = "LOSS"
-                item["return_pct"] = round(((stop_p - entry_p) / entry_p) * 100, 2)
-                item["pnl_yen"] = round((stop_p - entry_p) * 100, 0)
-                item["closed_at"] = now_time_str
-            elif high_price >= target_p:
-                item["status"] = "WIN"
-                item["return_pct"] = round(((target_p - entry_p) / entry_p) * 100, 2)
-                item["pnl_yen"] = round((target_p - entry_p) * 100, 0)
-                item["closed_at"] = now_time_str
+            # WIN / LOSS の決着日時を自動セット
+            if item.get("status") == "OPEN":
+                if low_price <= stop_p:
+                    item["status"] = "LOSS"
+                    item["return_pct"] = round(((stop_p - entry_p) / entry_p) * 100, 2)
+                    item["pnl_yen"] = round((stop_p - entry_p) * 100, 0)
+                    item["closed_at"] = now_time_str
+                elif high_price >= target_p:
+                    item["status"] = "WIN"
+                    item["return_pct"] = round(((target_p - entry_p) / entry_p) * 100, 2)
+                    item["pnl_yen"] = round((target_p - entry_p) * 100, 0)
+                    item["closed_at"] = now_time_str
+            else:
+                # 既に WIN / LOSS 確定済みで closed_at が無ければセット
+                if not item.get("closed_at") or item.get("closed_at") == "-":
+                    item["closed_at"] = now_time_str
         except Exception:
             continue
 
@@ -154,7 +163,7 @@ def update_signal_performance():
                 shares = item.get("shares", 100)
                 
                 item["name"] = get_company_name(code)
-                item["current_price"] = latest_close
+                item["current_price"] = round(latest_close, 1)
                 item["eval_amount"] = latest_close * shares
                 item["pnl_yen"] = (latest_close - buy_p) * shares
                 item["pnl_pct"] = round(((latest_close - buy_p) / buy_p) * 100, 2) if buy_p > 0 else 0.0
@@ -247,7 +256,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>🤖 trade - AI Signal & Real Portfolio Dashboard</h2>
-            <span class="badge bg-primary fs-6">更新: {datetime.now().strftime('%Y-%m-%d %H:%M')}</span>
+            <span class="badge bg-primary fs-6">更新: {datetime.now().strftime('%m-%d %H:%M')}</span>
         </div>
 
         <ul class="nav nav-tabs mb-4 fs-5" id="myTab" role="tablist">
@@ -437,6 +446,20 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             renderRealPortfolio();
         }}
 
+        function formatNoYear(dtStr) {{
+            if (!dtStr || dtStr === '-') return '-';
+            // 2026-08-02 15:30 -> 08-02 15:30
+            if (dtStr.length >= 10 && dtStr.includes('-')) {{
+                const parts = dtStr.split(' ');
+                const ymd = parts[0].split('-');
+                if (ymd.length === 3) {{
+                    const timePart = parts[1] || '';
+                    return `${{ymd[1]}}-${{ymd[2]}} ${{timePart}}`.trim();
+                }}
+            }}
+            return dtStr;
+        }}
+
         function renderAIHistory() {{
             const history = getLocalHistory();
             const tbody = document.getElementById('aiTableBody');
@@ -469,9 +492,13 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 
                 let pnlYen = item.pnl_yen !== undefined ? parseFloat(item.pnl_yen) : (currP - entryP) * 100;
                 if (st === 'WIN') {{ pnlYen = (targetP - entryP) * 100; }}
-                else if (st === 'LOSS') {{ pnlYen = (stopP - entryP) * 100; }}
+                else if (st === 'LOSS') {{ pnlYen = (stopP - entry_price) * 100; }}
 
-                const closedAt = item.closed_at || '-';
+                const dtFormatted = formatNoYear(item.date);
+                let closedAtFormatted = formatNoYear(item.closed_at);
+                if ((st === 'WIN' || st === 'LOSS') && closedAtFormatted === '-') {{
+                    closedAtFormatted = dtFormatted; // 確定している場合は日時を表示
+                }}
                 
                 if (st === 'WIN') {{ wins++; totalClosed++; totalReturnPct += retP; totalPnlYen += pnlYen; }}
                 else if (st === 'LOSS') {{ losses++; totalClosed++; totalReturnPct += retP; totalPnlYen += pnlYen; }}
@@ -485,7 +512,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 
                 tbody.innerHTML += `
                     <tr>
-                        <td><small>${{item.date || '-'}}</small></td>
+                        <td><small class="fw-bold">${{dtFormatted}}</small></td>
                         <td><strong>${{item.name || item.ticker_code || item.ticker}}</strong></td>
                         <td><span class="badge bg-secondary">${{item.score || 60}}点</span></td>
                         <td>${{entryP.toLocaleString()}}円</td>
@@ -495,7 +522,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                         <td>${{currP.toLocaleString()}}円</td>
                         <td class="${{retCls}}"><strong>${{retSign}}${{Math.round(pnlYen).toLocaleString()}}円 (${{retSign}}${{retP.toFixed(2)}}%)</strong></td>
                         <td>${{badge}}</td>
-                        <td><small class="text-muted">${{closedAt}}</small></td>
+                        <td><small class="text-muted">${{closedAtFormatted}}</small></td>
                     </tr>
                 `;
             }});
@@ -542,10 +569,11 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 
                 const pnlCls = pnlY >= 0 ? 'text-success' : 'text-danger';
                 const pnlSign = pnlY >= 0 ? '+' : '';
+                const bDtFormatted = formatNoYear(item.buy_date);
 
                 tbody.innerHTML += `
                     <tr>
-                        <td><small>${{item.buy_date || '-'}}</small></td>
+                        <td><small class="fw-bold">${{bDtFormatted}}</small></td>
                         <td><strong>${{item.name || item.ticker}}</strong></td>
                         <td>${{buyP.toLocaleString()}}円</td>
                         <td>${{shares.toLocaleString()}}株</td>
