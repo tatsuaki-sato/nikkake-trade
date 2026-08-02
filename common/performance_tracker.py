@@ -9,12 +9,17 @@ import requests
 from bs4 import BeautifulSoup
 from common.stock_names import get_company_name
 
+try:
+    import curl_cffi
+    print("✅ yfinance + curl_cffi (Chrome TLS指紋偽装エンジン) が正常に読み込まれました")
+except ImportError:
+    print("⚠️ curl_cffi が見つかりません。yfinance がブロックされる可能性があります")
+
 HISTORY_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "signal_history.json")
 REAL_PORTFOLIO_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "real_portfolio.json")
 DASHBOARD_HTML = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dashboard.html")
 INDEX_HTML = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "index.html")
 
-# 右上の再読み込みボタンを押さない限り「10分間（600秒）アクセスゼロ」にするキャッシュ
 _STOCK_DATA_CACHE = None
 _CACHE_TIMESTAMP = 0
 CACHE_TTL_SECONDS = 600  # 10分キャッシュ
@@ -81,10 +86,48 @@ def record_signal(ticker: str, entry_price: float, target_price: float, stop_los
     history.append(signal_entry)
     save_history(history)
 
+def fetch_japan_stock_price_backup(code: str) -> dict:
+    """
+    yfinanceが通信失敗した場合の完全バックアップ用ダイレクト取得
+    """
+    try:
+        url = f"https://finance.yahoo.co.jp/quote/{code}.T"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        }
+        resp = requests.get(url, headers=headers, timeout=4)
+        if resp.status_code == 200:
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            price_elem = soup.find('span', class_='_3rXW27w1') or soup.find('span', class_='_2dvwP6a7') or soup.find('span', class_='_1E8Gq241')
+            if price_elem:
+                price_str = price_elem.text.replace(',', '').replace('円', '').strip()
+                p_val = float(price_str)
+                return {"close": p_val, "high": p_val, "low": p_val}
+    except Exception:
+        pass
+
+    try:
+        url = f"https://kabutan.jp/stock/?code={code}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        resp = requests.get(url, headers=headers, timeout=4)
+        if resp.status_code == 200:
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            price_span = soup.find('span', class_='kabuka')
+            if price_span:
+                price_str = price_span.text.replace(',', '').replace('円', '').strip()
+                p_val = float(price_str)
+                return {"close": p_val, "high": p_val, "low": p_val}
+    except Exception:
+        pass
+
+    return None
+
 def fetch_stock_data_robust(tickers: list, force_refresh: bool = False):
     """
-    10分間（600秒）完全キャッシュ。
-    yfinance + curl_cffi (ブラウザ偽装TLSハンドシェイク) を使用してYahoo Financeから100%確実にデータ取得！
+    10分間完全キャッシュ。
+    yfinance + curl_cffi で優先取得し、万が一エラーが起きた銘柄のみ自動補填。
     """
     global _STOCK_DATA_CACHE, _CACHE_TIMESTAMP
     now = time.time()
@@ -95,27 +138,44 @@ def fetch_stock_data_robust(tickers: list, force_refresh: bool = False):
     if not tickers:
         return None
         
+    result_dict = {}
+    
+    # 1st: yfinance (curl_cffi 連携) で一括ダウンロード
     try:
-        # yfinance (curl_cffi連携) でYahoo Financeから一括取得
         data = yf.download(tickers, period="3mo", interval="1d", group_by="ticker", progress=False, threads=False)
         if data is not None and not data.empty:
-            _STOCK_DATA_CACHE = data
-            _CACHE_TIMESTAMP = now
-            return data
+            result_dict = {}
+            for t in tickers:
+                try:
+                    df_t = data[t].dropna() if len(tickers) > 1 else data.dropna()
+                    if not df_t.empty:
+                        result_dict[t] = df_t
+                except Exception:
+                    pass
     except Exception as e:
-        print(f"yfinance bulk download error: {e}")
+        print(f"yfinance bulk download note: {e}")
 
-    # 個別Tickerでyfinance試行
-    result_dict = {}
+    # 2nd: 取得漏れがあった銘柄のみ個別yfinanceまたはバックアップ補填
     for t in tickers:
-        try:
-            tk = yf.Ticker(t)
-            df = tk.history(period="3mo", interval="1d")
-            if df is not None and not df.empty:
-                result_dict[t] = df
-        except Exception as ex:
-            print(f"yfinance single ticker error ({t}): {ex}")
-            
+        if t not in result_dict or result_dict[t].empty:
+            try:
+                tk = yf.Ticker(t)
+                df = tk.history(period="3mo", interval="1d")
+                if df is not None and not df.empty:
+                    result_dict[t] = df
+                    continue
+            except Exception:
+                pass
+                
+            code = t.replace('.T', '').strip()
+            bk = fetch_japan_stock_price_backup(code)
+            if bk:
+                result_dict[t] = pd.DataFrame([{
+                    "High": bk["high"],
+                    "Low": bk["low"],
+                    "Close": bk["close"]
+                }], index=[pd.to_datetime(datetime.now().strftime("%Y-%m-%d"))])
+
     if result_dict:
         _STOCK_DATA_CACHE = result_dict
         _CACHE_TIMESTAMP = now
