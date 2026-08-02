@@ -68,6 +68,7 @@ def record_signal(ticker: str, entry_price: float, target_price: float, stop_los
         "max_price": entry_price,
         "min_price": entry_price,
         "return_pct": 0.0,
+        "pnl_yen": 0.0,
         "details": details
     }
     history.append(signal_entry)
@@ -125,14 +126,17 @@ def update_signal_performance():
             item["max_price"] = max(item.get("max_price", entry_p), high_price)
             item["min_price"] = min(item.get("min_price", entry_p), low_price)
             item["return_pct"] = round(((latest_close - entry_p) / entry_p) * 100, 2)
+            item["pnl_yen"] = round((latest_close - entry_p) * 100, 0)
             
             if low_price <= stop_p:
                 item["status"] = "LOSS"
                 item["return_pct"] = round(((stop_p - entry_p) / entry_p) * 100, 2)
+                item["pnl_yen"] = round((stop_p - entry_p) * 100, 0)
                 item["closed_at"] = now_time_str
             elif high_price >= target_p:
                 item["status"] = "WIN"
                 item["return_pct"] = round(((target_p - entry_p) / entry_p) * 100, 2)
+                item["pnl_yen"] = round((target_p - entry_p) * 100, 0)
                 item["closed_at"] = now_time_str
         except Exception:
             continue
@@ -174,30 +178,32 @@ def generate_weekly_report() -> str:
     
     total_closed = len(wins) + len(losses)
     win_rate = (len(wins) / total_closed * 100) if total_closed > 0 else 0.0
-    total_return = sum([i.get("return_pct", 0) for i in history if i.get("status") in ["WIN", "LOSS"]])
+    total_return_pct = sum([i.get("return_pct", 0) for i in history if i.get("status") in ["WIN", "LOSS"]])
+    total_pnl_yen = sum([i.get("pnl_yen", 0) for i in history if i.get("status") in ["WIN", "LOSS"]])
     
     text = "🏆 **【AIトレード勝率 ＆ 実取引パフォーマンス通信】**\n"
     text += f"AIが過去に推奨した全シグナルの実測検証結果です。\n\n"
     text += f"📊 **通算対戦成績**: {len(wins)}勝 {len(losses)}敗 ({len(opens)}件 監視中)\n"
     text += f"🎯 **通算勝率**: **{win_rate:.1f}%**\n"
-    text += f"💰 **確定通算リターン**: **{total_return:+.1f}%**\n\n"
+    text += f"💰 **確定損益通算**: **{total_pnl_yen:+,.0f}円 ({total_return_pct:+.1f}%)**\n\n"
     
     text += "📋 **【直近AI推奨シグナル】**\n"
     for item in reversed(history[-5:]):
         st = item.get("status")
         name = item.get("name", item.get("ticker", ""))
         ret = item.get("return_pct", 0)
+        pnl = item.get("pnl_yen", 0)
         entry = item.get("entry_price")
         sim_a = entry * 100
         dt_str = item.get("date", "")
         closed_str = item.get("closed_at", "-")
         
         if st == "WIN":
-            text += f"・🎯 **{name}** (推奨日時: {dt_str} / 株価: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円) ➔ **利確達成 🎉 ({closed_str} / {ret:+.1f}%)**\n"
+            text += f"・🎯 **{name}** (推奨日時: {dt_str} / 100株 {sim_a/10000:.1f}万円) ➔ **利確完了 ({closed_str}) 損益: {pnl:+,.0f}円 ({ret:+.1f}%)**\n"
         elif st == "LOSS":
-            text += f"・🛑 **{name}** (推奨日時: {dt_str} / 株価: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円) ➔ **損切り撤退 🛑 ({closed_str} / {ret:+.1f}%)**\n"
+            text += f"・🛑 **{name}** (推奨日時: {dt_str} / 100株 {sim_a/10000:.1f}万円) ➔ **損切り完了 ({closed_str}) 損益: {pnl:+,.0f}円 ({ret:+.1f}%)**\n"
         else:
-            text += f"・👀 **{name}** (推奨日時: {dt_str} / 株価: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円 / {ret:+.1f}% 監視中)\n"
+            text += f"・👀 **{name}** (推奨日時: {dt_str} / 100株 {sim_a/10000:.1f}万円) ➔ **含み損益: {pnl:+,.0f}円 ({ret:+.1f}%) 監視中**\n"
             
     if real_portfolio:
         text += "\n💼 **【My リアル購入ポートフォリオ実効損益】**\n"
@@ -217,7 +223,8 @@ def generate_html_dashboard(history: list, real_portfolio: list):
     losses = len([i for i in history if i.get("status") == "LOSS"])
     total_closed = wins + losses
     win_rate = (wins / total_closed * 100) if total_closed > 0 else 0.0
-    total_return = sum([i.get("return_pct", 0) for i in history if i.get("status") in ["WIN", "LOSS"]])
+    total_return_pct = sum([i.get("return_pct", 0) for i in history if i.get("status") in ["WIN", "LOSS"]])
+    total_pnl_yen = sum([i.get("pnl_yen", 0) for i in history if i.get("status") in ["WIN", "LOSS"]])
 
     server_history_json = json.dumps(history, ensure_ascii=False)
     server_real_json = json.dumps(real_portfolio, ensure_ascii=False)
@@ -265,9 +272,9 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     </div>
                     <div class="col-md-4">
                         <div class="card card-stat bg-white p-3 text-center">
-                            <div class="text-muted">確定累積リターン</div>
-                            <div class="display-5 {'text-success' if total_return >= 0 else 'text-danger'} fw-bold" id="aiReturnText">{total_return:+.1f}%</div>
-                            <small>全決済シグナル合計</small>
+                            <div class="text-muted">確定累積損益 (100株計)</div>
+                            <div class="display-5 {'text-success' if total_pnl_yen >= 0 else 'text-danger'} fw-bold" id="aiReturnText">{total_pnl_yen:+,.0f}円</div>
+                            <small id="aiReturnPctText">全決済リターン通算: {total_return_pct:+.1f}%</small>
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -282,7 +289,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 <div class="card bg-white p-4 card-stat">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="card-title mb-0">📋 AI推奨シグナル実測追跡リスト</h5>
-                        <small class="text-muted">推奨日時〜利確/損切り決着日時まで完全実測追跡</small>
+                        <small class="text-muted">推奨日時〜利確/損切り決着日時・100株ベース損益金額まで完全実測追跡</small>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
@@ -296,7 +303,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                                     <th>目標利確</th>
                                     <th>損切り</th>
                                     <th>最新/最終株価</th>
-                                    <th>リターン</th>
+                                    <th>100株損益額 (%)</th>
                                     <th>ステータス</th>
                                     <th>決着日時</th>
                                 </tr>
@@ -438,13 +445,14 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             let wins = 0;
             let losses = 0;
             let totalClosed = 0;
-            let totalReturn = 0;
+            let totalReturnPct = 0;
+            let totalPnlYen = 0;
 
             if (!history || history.length === 0) {{
                 tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">現在、実測推奨シグナルデータはありません。</td></tr>';
                 document.getElementById('aiWinRateText').innerText = '0.0%';
                 document.getElementById('aiWinLossText').innerText = '0勝 0敗';
-                document.getElementById('aiReturnText').innerText = '+0.0%';
+                document.getElementById('aiReturnText').innerText = '+0円';
                 document.getElementById('aiTotalCountText').innerText = '0件';
                 document.getElementById('aiOpenCountText').innerText = '監視中: 0件';
                 return;
@@ -458,17 +466,22 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 const currP = parseFloat(item.current_price || entryP);
                 const retP = parseFloat(item.return_pct || 0);
                 const simAmt = entryP * 100;
+                
+                let pnlYen = item.pnl_yen !== undefined ? parseFloat(item.pnl_yen) : (currP - entryP) * 100;
+                if (st === 'WIN') {{ pnlYen = (targetP - entryP) * 100; }}
+                else if (st === 'LOSS') {{ pnlYen = (stopP - entryP) * 100; }}
+
                 const closedAt = item.closed_at || '-';
                 
-                if (st === 'WIN') {{ wins++; totalClosed++; totalReturn += retP; }}
-                else if (st === 'LOSS') {{ losses++; totalClosed++; totalReturn += retP; }}
+                if (st === 'WIN') {{ wins++; totalClosed++; totalReturnPct += retP; totalPnlYen += pnlYen; }}
+                else if (st === 'LOSS') {{ losses++; totalClosed++; totalReturnPct += retP; totalPnlYen += pnlYen; }}
 
                 const badge = st === 'WIN' ? '<span class="badge bg-success">WIN 利確</span>' : (
                     st === 'LOSS' ? '<span class="badge bg-danger">LOSS 損切</span>' : '<span class="badge bg-warning text-dark">OPEN 監視中</span>'
                 );
 
-                const retCls = retP >= 0 ? 'text-success' : 'text-danger';
-                const retSign = retP >= 0 ? '+' : '';
+                const retCls = pnlYen >= 0 ? 'text-success' : 'text-danger';
+                const retSign = pnlYen >= 0 ? '+' : '';
 
                 tbody.innerHTML += `
                     <tr>
@@ -480,7 +493,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                         <td>${{targetP.toLocaleString()}}円</td>
                         <td>${{stopP.toLocaleString()}}円</td>
                         <td>${{currP.toLocaleString()}}円</td>
-                        <td class="${{retCls}}"><strong>${{retSign}}${{retP.toFixed(2)}}%</strong></td>
+                        <td class="${{retCls}}"><strong>${{retSign}}${{Math.round(pnlYen).toLocaleString()}}円 (${{retSign}}${{retP.toFixed(2)}}%)</strong></td>
                         <td>${{badge}}</td>
                         <td><small class="text-muted">${{closedAt}}</small></td>
                     </tr>
@@ -491,11 +504,12 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             document.getElementById('aiWinRateText').innerText = winRate + '%';
             document.getElementById('aiWinLossText').innerText = `${{wins}}勝 ${{losses}}敗 (${{totalClosed}}件決済完了)`;
             
-            const retSign = totalReturn >= 0 ? '+' : '';
+            const retSign = totalPnlYen >= 0 ? '+' : '';
             const retElem = document.getElementById('aiReturnText');
-            retElem.innerText = retSign + totalReturn.toFixed(1) + '%';
-            retElem.className = 'display-5 fw-bold ' + (totalReturn >= 0 ? 'text-success' : 'text-danger');
+            retElem.innerText = retSign + Math.round(totalPnlYen).toLocaleString() + '円';
+            retElem.className = 'display-5 fw-bold ' + (totalPnlYen >= 0 ? 'text-success' : 'text-danger');
 
+            document.getElementById('aiReturnPctText').innerText = '全決済リターン通算: ' + (totalReturnPct >= 0 ? '+' : '') + totalReturnPct.toFixed(1) + '%';
             document.getElementById('aiTotalCountText').innerText = history.length + '件';
             document.getElementById('aiOpenCountText').innerText = '監視中: ' + (history.length - totalClosed) + '件';
         }}

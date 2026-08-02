@@ -16,7 +16,7 @@
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>🤖 trade - AI Signal & Real Portfolio Dashboard</h2>
-            <span class="badge bg-primary fs-6">更新: 2026-08-02 23:33</span>
+            <span class="badge bg-primary fs-6">更新: 2026-08-02 23:41</span>
         </div>
 
         <ul class="nav nav-tabs mb-4 fs-5" id="myTab" role="tablist">
@@ -41,9 +41,9 @@
                     </div>
                     <div class="col-md-4">
                         <div class="card card-stat bg-white p-3 text-center">
-                            <div class="text-muted">確定累積リターン</div>
-                            <div class="display-5 text-success fw-bold" id="aiReturnText">+18.0%</div>
-                            <small>全決済シグナル合計</small>
+                            <div class="text-muted">確定累積損益 (100株計)</div>
+                            <div class="display-5 text-success fw-bold" id="aiReturnText">+0円</div>
+                            <small id="aiReturnPctText">全決済リターン通算: +18.0%</small>
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -58,7 +58,7 @@
                 <div class="card bg-white p-4 card-stat">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="card-title mb-0">📋 AI推奨シグナル実測追跡リスト</h5>
-                        <small class="text-muted">推奨日時〜利確/損切り決着日時まで完全実測追跡</small>
+                        <small class="text-muted">推奨日時〜利確/損切り決着日時・100株ベース損益金額まで完全実測追跡</small>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
@@ -72,7 +72,7 @@
                                     <th>目標利確</th>
                                     <th>損切り</th>
                                     <th>最新/最終株価</th>
-                                    <th>リターン</th>
+                                    <th>100株損益額 (%)</th>
                                     <th>ステータス</th>
                                     <th>決着日時</th>
                                 </tr>
@@ -214,13 +214,14 @@
             let wins = 0;
             let losses = 0;
             let totalClosed = 0;
-            let totalReturn = 0;
+            let totalReturnPct = 0;
+            let totalPnlYen = 0;
 
             if (!history || history.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">現在、実測推奨シグナルデータはありません。</td></tr>';
                 document.getElementById('aiWinRateText').innerText = '0.0%';
                 document.getElementById('aiWinLossText').innerText = '0勝 0敗';
-                document.getElementById('aiReturnText').innerText = '+0.0%';
+                document.getElementById('aiReturnText').innerText = '+0円';
                 document.getElementById('aiTotalCountText').innerText = '0件';
                 document.getElementById('aiOpenCountText').innerText = '監視中: 0件';
                 return;
@@ -234,17 +235,22 @@
                 const currP = parseFloat(item.current_price || entryP);
                 const retP = parseFloat(item.return_pct || 0);
                 const simAmt = entryP * 100;
+                
+                let pnlYen = item.pnl_yen !== undefined ? parseFloat(item.pnl_yen) : (currP - entryP) * 100;
+                if (st === 'WIN') { pnlYen = (targetP - entryP) * 100; }
+                else if (st === 'LOSS') { pnlYen = (stopP - entryP) * 100; }
+
                 const closedAt = item.closed_at || '-';
                 
-                if (st === 'WIN') { wins++; totalClosed++; totalReturn += retP; }
-                else if (st === 'LOSS') { losses++; totalClosed++; totalReturn += retP; }
+                if (st === 'WIN') { wins++; totalClosed++; totalReturnPct += retP; totalPnlYen += pnlYen; }
+                else if (st === 'LOSS') { losses++; totalClosed++; totalReturnPct += retP; totalPnlYen += pnlYen; }
 
                 const badge = st === 'WIN' ? '<span class="badge bg-success">WIN 利確</span>' : (
                     st === 'LOSS' ? '<span class="badge bg-danger">LOSS 損切</span>' : '<span class="badge bg-warning text-dark">OPEN 監視中</span>'
                 );
 
-                const retCls = retP >= 0 ? 'text-success' : 'text-danger';
-                const retSign = retP >= 0 ? '+' : '';
+                const retCls = pnlYen >= 0 ? 'text-success' : 'text-danger';
+                const retSign = pnlYen >= 0 ? '+' : '';
 
                 tbody.innerHTML += `
                     <tr>
@@ -256,7 +262,7 @@
                         <td>${targetP.toLocaleString()}円</td>
                         <td>${stopP.toLocaleString()}円</td>
                         <td>${currP.toLocaleString()}円</td>
-                        <td class="${retCls}"><strong>${retSign}${retP.toFixed(2)}%</strong></td>
+                        <td class="${retCls}"><strong>${retSign}${Math.round(pnlYen).toLocaleString()}円 (${retSign}${retP.toFixed(2)}%)</strong></td>
                         <td>${badge}</td>
                         <td><small class="text-muted">${closedAt}</small></td>
                     </tr>
@@ -267,11 +273,12 @@
             document.getElementById('aiWinRateText').innerText = winRate + '%';
             document.getElementById('aiWinLossText').innerText = `${wins}勝 ${losses}敗 (${totalClosed}件決済完了)`;
             
-            const retSign = totalReturn >= 0 ? '+' : '';
+            const retSign = totalPnlYen >= 0 ? '+' : '';
             const retElem = document.getElementById('aiReturnText');
-            retElem.innerText = retSign + totalReturn.toFixed(1) + '%';
-            retElem.className = 'display-5 fw-bold ' + (totalReturn >= 0 ? 'text-success' : 'text-danger');
+            retElem.innerText = retSign + Math.round(totalPnlYen).toLocaleString() + '円';
+            retElem.className = 'display-5 fw-bold ' + (totalPnlYen >= 0 ? 'text-success' : 'text-danger');
 
+            document.getElementById('aiReturnPctText').innerText = '全決済リターン通算: ' + (totalReturnPct >= 0 ? '+' : '') + totalReturnPct.toFixed(1) + '%';
             document.getElementById('aiTotalCountText').innerText = history.length + '件';
             document.getElementById('aiOpenCountText').innerText = '監視中: ' + (history.length - totalClosed) + '件';
         }
