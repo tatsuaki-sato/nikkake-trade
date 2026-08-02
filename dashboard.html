@@ -15,8 +15,8 @@
 <body>
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>🤖 AI Trade Signal & Real Portfolio Dashboard</h2>
-            <span class="badge bg-primary fs-6">更新: 2026-08-02 23:13</span>
+            <h2>🤖 trade - AI Signal & Real Portfolio Dashboard</h2>
+            <span class="badge bg-primary fs-6">更新: 2026-08-02 23:14</span>
         </div>
 
         <ul class="nav nav-tabs mb-4 fs-5" id="myTab" role="tablist">
@@ -215,9 +215,12 @@
             <div class="tab-pane fade" id="real-panel" role="tabpanel">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h4>💼 実際に購入した銘柄リスト</h4>
-                    <button class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#addStockModal">
-                        ➕ 画面から購入銘柄を即時追加
-                    </button>
+                    <div>
+                        <button class="btn btn-outline-secondary me-2" onclick="copyPortfolioJSON()">📋 登録データをAIへ同期用にコピー</button>
+                        <button class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#addStockModal">
+                            ➕ 画面から購入銘柄を即時追加
+                        </button>
+                    </div>
                 </div>
 
                 <div class="row mb-4">
@@ -303,7 +306,7 @@
     </div>
 
     <script>
-        const serverPortfolio = [{"id": "real_7203_1", "ticker": "7203", "name": "7203 トヨタ自動車", "buy_date": "2026-08-01", "buy_price": 3000.0, "shares": 100, "total_investment": 300000.0, "note": "サンプル購入データ (自由に編集・削除可能)", "current_price": 3067.0, "eval_amount": 306700.0, "pnl_yen": 6700.0, "pnl_pct": 2.23}];
+        const serverPortfolio = [];
         
         function getLocalPortfolio() {
             const stored = localStorage.getItem('user_real_portfolio');
@@ -327,7 +330,7 @@
             let totalPnl = 0;
 
             if (!portfolio || portfolio.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">まだ購入銘柄が登録されていません。「➕ 画面から購入銘柄を即時追加」ボタンを押して登録してください。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">現在、実際の購入保有銘柄はありません。「➕ 画面から購入銘柄を即時追加」ボタンを押して登録してください。</td></tr>';
                 document.getElementById('totalInvestText').innerText = '0.0万円';
                 document.getElementById('totalPnlText').innerText = '+0円';
                 return;
@@ -412,6 +415,16 @@
                 portfolio.splice(index, 1);
                 saveLocalPortfolio(portfolio);
             }
+        }
+
+        function copyPortfolioJSON() {
+            const portfolio = getLocalPortfolio();
+            const str = JSON.stringify(portfolio, null, 2);
+            navigator.clipboard.writeText(str).then(() => {
+                alert('現在画面で追加・編集したポートフォリオのJSONコードをクリップボードにコピーしました！AIへの連絡やサーバー同期にご利用いただけます。');
+            }).catch(err => {
+                prompt('以下をコピーしてください:', str);
+            });
         }
 
         document.addEventListener('DOMContentLoaded', () => {

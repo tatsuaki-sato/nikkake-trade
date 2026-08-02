@@ -75,9 +75,6 @@ def update_signal_performance():
     history = load_history()
     real_portfolio = load_real_portfolio()
     
-    if not history and not real_portfolio:
-        return
-
     all_tickers = []
     if history:
         all_tickers.extend([item.get("ticker_code", item.get("ticker", "")) + ".T" for item in history if item.get("status") == "OPEN"])
@@ -93,6 +90,7 @@ def update_signal_performance():
         data = yf.download(tickers, period="1mo", group_by="ticker", progress=False)
     except Exception as e:
         print(f"株追跡データ取得エラー: {e}")
+        generate_html_dashboard(history, real_portfolio)
         return
 
     for item in history:
@@ -201,6 +199,8 @@ def generate_weekly_report() -> str:
             pnl_y = item.get("pnl_yen", 0)
             pnl_p = item.get("pnl_pct", 0)
             text += f"・💵 **{item.get('name')}**: 買付 {item.get('buy_price'):,.1f}円({item.get('shares')}株) ➔ 損益 **{pnl_y:+,.0f}円 ({pnl_p:+.1f}%)**\n"
+    else:
+        text += "\n💼 **【My リアル購入ポートフォリオ】**\n現在、実際の購入保有銘柄はありません（画面から追加可能）。\n"
 
     text += "\n※ルール通り売買した場合の完全実測検証およびリアル保有損益です。"
     return text
@@ -254,7 +254,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 <body>
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>🤖 AI Trade Signal & Real Portfolio Dashboard</h2>
+            <h2>🤖 trade - AI Signal & Real Portfolio Dashboard</h2>
             <span class="badge bg-primary fs-6">更新: {datetime.now().strftime('%Y-%m-%d %H:%M')}</span>
         </div>
 
@@ -324,9 +324,12 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             <div class="tab-pane fade" id="real-panel" role="tabpanel">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h4>💼 実際に購入した銘柄リスト</h4>
-                    <button class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#addStockModal">
-                        ➕ 画面から購入銘柄を即時追加
-                    </button>
+                    <div>
+                        <button class="btn btn-outline-secondary me-2" onclick="copyPortfolioJSON()">📋 登録データをAIへ同期用にコピー</button>
+                        <button class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#addStockModal">
+                            ➕ 画面から購入銘柄を即時追加
+                        </button>
+                    </div>
                 </div>
 
                 <div class="row mb-4">
@@ -436,7 +439,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             let totalPnl = 0;
 
             if (!portfolio || portfolio.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">まだ購入銘柄が登録されていません。「➕ 画面から購入銘柄を即時追加」ボタンを押して登録してください。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">現在、実際の購入保有銘柄はありません。「➕ 画面から購入銘柄を即時追加」ボタンを押して登録してください。</td></tr>';
                 document.getElementById('totalInvestText').innerText = '0.0万円';
                 document.getElementById('totalPnlText').innerText = '+0円';
                 return;
@@ -521,6 +524,16 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 portfolio.splice(index, 1);
                 saveLocalPortfolio(portfolio);
             }}
+        }}
+
+        function copyPortfolioJSON() {{
+            const portfolio = getLocalPortfolio();
+            const str = JSON.stringify(portfolio, null, 2);
+            navigator.clipboard.writeText(str).then(() => {{
+                alert('現在画面で追加・編集したポートフォリオのJSONコードをクリップボードにコピーしました！AIへの連絡やサーバー同期にご利用いただけます。');
+            }}).catch(err => {{
+                prompt('以下をコピーしてください:', str);
+            }});
         }}
 
         document.addEventListener('DOMContentLoaded', () => {{

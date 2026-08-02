@@ -1,16 +1,1 @@
-[
-  {
-    "id": "real_7203_1",
-    "ticker": "7203",
-    "name": "7203 トヨタ自動車",
-    "buy_date": "2026-08-01",
-    "buy_price": 3000.0,
-    "shares": 100,
-    "total_investment": 300000.0,
-    "note": "サンプル購入データ (自由に編集・削除可能)",
-    "current_price": 3067.0,
-    "eval_amount": 306700.0,
-    "pnl_yen": 6700.0,
-    "pnl_pct": 2.23
-  }
-]
+[]
