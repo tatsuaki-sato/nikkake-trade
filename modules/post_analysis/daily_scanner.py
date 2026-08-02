@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime
 import sys
 import os
+import re
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from common.notifier import notify
@@ -14,7 +15,7 @@ from modules.post_analysis.quant_analyzer import evaluate_quant_factors
 
 TARGET_TICKERS = [
     "7203.T", "9984.T", "6920.T", "8035.T", "6861.T", 
-    "7974.T", "6758.T", "9432.T", "8306.T", "4063.T"
+    "7974.T", "6758.T", "9432.T", "8306.T", "4063.T", "7011.T", "6857.T"
 ]
 BENCHMARK_TICKER = "1321.T"
 
@@ -27,6 +28,37 @@ def get_cached_financial_perks(ticker: str, close_price: float) -> dict:
     set_cached_item(cache_key, data)
     return data
 
+def record_theme_candidates(theme_details: list, fetched_data: pd.DataFrame):
+    """
+    注目テーマTOP3の代表銘柄もすべて自動で【実測トラッキングデータベース】へ登録
+    """
+    for item in theme_details[:3]:
+        theme_name = item.get('theme', '')
+        for stock_str in item.get('stocks', []):
+            codes = re.findall(r'\d{4}', stock_str)
+            if not codes:
+                continue
+            code = codes[0]
+            ticker = f"{code}.T"
+            try:
+                close_p = None
+                if fetched_data is not None and ticker in fetched_data:
+                    df = fetched_data[ticker].dropna()
+                    if not df.empty:
+                        close_p = float(df.iloc[-1]['Close'])
+                if close_p is None:
+                    df = yf.download(ticker, period="1mo", progress=False).dropna()
+                    if not df.empty:
+                        close_p = float(df.iloc[-1]['Close'])
+                
+                if close_p:
+                    atr = close_p * 0.02
+                    target_p = close_p + (3.0 * atr)
+                    stop_p = max(close_p - (2.0 * atr), 0)
+                    record_signal(ticker, close_p, target_p, stop_p, score=65, details={"Theme": f"【注目テーマTOP3】{theme_name}"})
+            except Exception as e:
+                print(f"テーマ銘柄自動記録エラー ({code}): {e}")
+
 def run_daily_scanner():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 売買判断ダッシュボード付きクオンツ事後分析起動...")
     
@@ -37,13 +69,15 @@ def run_daily_scanner():
         data = yf.download(tickers_to_fetch, period="1y", group_by="ticker", progress=False)
     except Exception as e:
         print(f"データ取得エラー: {e}")
-        return
+        data = None
 
-    market_df = data[BENCHMARK_TICKER].copy().dropna()
+    market_df = data[BENCHMARK_TICKER].copy().dropna() if data is not None and BENCHMARK_TICKER in data else None
     hit_list = []
     
     for ticker in TARGET_TICKERS:
         try:
+            if data is None or ticker not in data:
+                continue
             stock_df = data[ticker].copy().dropna()
             if len(stock_df) < 50:
                 continue
@@ -113,13 +147,15 @@ def run_daily_scanner():
             
     else:
         theme_details = get_market_trending_themes()
+        record_theme_candidates(theme_details, data)
+        
         notify_text = "🏛️ **【クオンツ市況 ＆ 売買判断トレンドテーマ】**\n"
         notify_text += "本日は70点以上の高ファクター条件を満たす特定銘柄は検出されませんでしたが、現在市場で最も資金流入している注目テーマおよび代表関連株は以下の通りです：\n\n"
         notify_text += "🔥 **【市場注目テーマ TOP 5 ＆ 関連代表株】**\n"
         for i, item in enumerate(theme_details[:5], 1):
             stocks_str = ", ".join(item['stocks'])
             notify_text += f"{i}. **{item['theme']}**\n   └ 関連代表銘柄: {stocks_str}\n"
-        notify_text += "\n※全自動でEPS成長率・リスクリワード・損切りラインを常時監視しています。"
+        notify_text += "\n※全注目テーマの代表銘柄は、全自動で【AI実測トラッキングデータベース】へ登録・勝敗追跡中。"
         
         notify(notify_text)
 

@@ -178,5 +178,19 @@
       "per": "23.0倍",
       "pbr": "2.37倍"
     }
+  },
+  "edinet_7011": {
+    "timestamp": 1785679977.2647061,
+    "value": {
+      "has_5percent_report": false,
+      "details": ""
+    }
+  },
+  "edinet_6857": {
+    "timestamp": 1785679978.2171462,
+    "value": {
+      "has_5percent_report": false,
+      "details": ""
+    }
   }
 }
