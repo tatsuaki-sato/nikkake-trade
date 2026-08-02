@@ -1,0 +1,19 @@
+[
+  {
+    "id": "7203.T_2026-08-02",
+    "date": "2026-08-02",
+    "ticker": "7203",
+    "entry_price": 3000.0,
+    "target_price": 3270.0,
+    "stop_loss_price": 2820.0,
+    "score": 85,
+    "status": "OPEN",
+    "current_price": 3000.0,
+    "max_price": 3000.0,
+    "min_price": 3000.0,
+    "return_pct": 0.0,
+    "details": {
+      "Residual_Momentum": "テスト"
+    }
+  }
+]

@@ -7,6 +7,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from common.notifier import notify
 from common.cache_manager import get_cached_item, set_cached_item
+from common.performance_tracker import record_signal, update_signal_performance
 from modules.post_analysis.advanced_scraper import get_x_sentiment_score, get_kabutan_news, get_market_trending_themes, get_stock_financial_perks
 from modules.post_analysis.quant_analyzer import evaluate_quant_factors
 
@@ -27,6 +28,9 @@ def get_cached_financial_perks(ticker: str, close_price: float) -> dict:
 
 def run_daily_scanner():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 売買判断ダッシュボード付きクオンツ事後分析起動...")
+    
+    # 既存の全シグナルの最新価格照合と勝敗判定
+    update_signal_performance()
     
     tickers_to_fetch = TARGET_TICKERS + [BENCHMARK_TICKER]
     try:
@@ -55,6 +59,13 @@ def run_daily_scanner():
                 news = get_kabutan_news(ticker)
                 perks = get_cached_financial_perks(ticker, close_price)
                 trade_plan = quant_result.get('trade_plan', {})
+                
+                # シグナル追跡データベースへの自動記録
+                atr_series = stock_df['Close'].diff().abs().rolling(14).mean()
+                atr = float(atr_series.iloc[-1]) if not pd.isna(atr_series.iloc[-1]) else close_price * 0.02
+                target_p = close_price + (3.0 * atr)
+                stop_p = max(close_price - (2.0 * atr), 0)
+                record_signal(ticker, close_price, target_p, stop_p, score, quant_result['details'])
                 
                 hit_list.append({
                     "銘柄コード": stock_name,
@@ -109,7 +120,7 @@ def run_daily_scanner():
         for i, item in enumerate(theme_details[:5], 1):
             stocks_str = ", ".join(item['stocks'])
             notify_text += f"{i}. **{item['theme']}**\n   └ 関連代表銘柄: {stocks_str}\n"
-        notify_text += "\n※全自動でEPS成長率・リスクリワード・損切りラインを常時監視しています。"
+        notify_text += "\n※全自動で勝率・リスクリワード・全推奨シグナルを追跡データベースに自動記録しています。"
         
         notify(notify_text)
 
