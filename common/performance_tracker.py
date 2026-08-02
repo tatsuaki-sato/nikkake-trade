@@ -73,6 +73,32 @@ def record_signal(ticker: str, entry_price: float, target_price: float, stop_los
     history.append(signal_entry)
     save_history(history)
 
+def fetch_stock_data_robust(tickers: list):
+    """
+    クラウド環境（Render）でのYahoo Financeレートリミット・JSONDecodeError対策付き株価取得関数
+    """
+    if not tickers:
+        return None
+    try:
+        # 一括ダウンロード（threads=Falseでアクセスブロック回避）
+        data = yf.download(tickers, period="3mo", interval="1d", group_by="ticker", progress=False, threads=False)
+        if data is not None and not data.empty:
+            return data
+    except Exception as e:
+        print(f"yfinance bulk download failed: {e}")
+
+    # 個別リトライフォールバック
+    result_dict = {}
+    for t in tickers:
+        try:
+            tk = yf.Ticker(t)
+            df = tk.history(period="3mo", interval="1d")
+            if df is not None and not df.empty:
+                result_dict[t] = df
+        except Exception as ex:
+            print(f"yfinance single ticker download failed ({t}): {ex}")
+    return result_dict
+
 def update_signal_performance():
     history = load_history()
     real_portfolio = load_real_portfolio()
@@ -88,13 +114,7 @@ def update_signal_performance():
         generate_html_dashboard(history, real_portfolio)
         return
 
-    try:
-        data = yf.download(tickers, period="3mo", interval="1d", group_by="ticker", progress=False)
-    except Exception as e:
-        print(f"株追跡データ取得エラー: {e}")
-        generate_html_dashboard(history, real_portfolio)
-        return
-
+    data_store = fetch_stock_data_robust(tickers)
     now_time_str = datetime.now().strftime("%m-%d %H:%M")
 
     for item in history:
@@ -110,8 +130,13 @@ def update_signal_performance():
         code = item.get("ticker_code", item.get("ticker", ""))
         symbol = code + ".T"
         try:
-            df = data[symbol].dropna() if len(tickers) > 1 else data.dropna()
-            if df.empty:
+            df = None
+            if isinstance(data_store, dict):
+                df = data_store.get(symbol)
+            elif data_store is not None:
+                df = data_store[symbol].dropna() if len(tickers) > 1 else data_store.dropna()
+
+            if df is None or df.empty:
                 continue
 
             entry_p = item["entry_price"]
@@ -128,7 +153,6 @@ def update_signal_performance():
             item["return_pct"] = round(((latest_close - entry_p) / entry_p) * 100, 2)
             item["pnl_yen"] = round((latest_close - entry_p) * 100, 0)
             
-            # 日毎の履歴を走査して最初についた本当の決着日付(closed_at)を精密計算
             trigger_closed_at = None
             trigger_status = None
             
@@ -138,7 +162,6 @@ def update_signal_performance():
                 dt_obj = pd.to_datetime(idx)
                 dt_formatted = dt_obj.strftime("%m-%d 15:30")
                 
-                # 保守的原則: 低価格(損切)を最優先判定
                 if r_low <= stop_p:
                     trigger_status = "LOSS"
                     trigger_closed_at = dt_formatted
@@ -169,8 +192,13 @@ def update_signal_performance():
         code = item.get("ticker", "")
         symbol = code + ".T"
         try:
-            df = data[symbol].dropna() if len(tickers) > 1 else data.dropna()
-            if not df.empty:
+            df = None
+            if isinstance(data_store, dict):
+                df = data_store.get(symbol)
+            elif data_store is not None:
+                df = data_store[symbol].dropna() if len(tickers) > 1 else data_store.dropna()
+
+            if df is not None and not df.empty:
                 latest_close = float(df["Close"].iloc[-1])
                 buy_p = item.get("buy_price", 0)
                 shares = item.get("shares", 100)
