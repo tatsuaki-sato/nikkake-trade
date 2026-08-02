@@ -164,17 +164,15 @@ def update_signal_performance():
                 if getattr(df.index, 'tz', None) is not None:
                     df.index = df.index.tz_localize(None)
 
-                rec_date_str = item["date"].split()[0] # "08-02"
+                rec_date_str = item["date"].split()[0]
                 current_year = datetime.now().year
                 try:
                     rec_dt = datetime.strptime(f"{current_year}-{rec_date_str}", "%Y-%m-%d")
-                    # 推奨日「当日以降」の株価データのみ抽出
                     df_after = df[df.index >= rec_dt]
                 except Exception as ex:
                     print(f"Date filter parse error: {ex}")
                     df_after = pd.DataFrame()
                     
-                # 推奨日以降のデータがまだ存在しない場合（例: 休日のため未オープン）はOPEN監視中に強制固定
                 if df_after.empty:
                     item["status"] = "OPEN"
                     item["closed_at"] = "-"
@@ -473,8 +471,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                                     <th>推奨日時</th>
                                     <th>企業名 (コード)</th>
                                     <th>スコア</th>
-                                    <th>推奨株価</th>
-                                    <th>100株購入額</th>
+                                    <th>推奨株価 (100株購入額)</th>
                                     <th>目標利確</th>
                                     <th>損切り</th>
                                     <th>最新/最終株価</th>
@@ -527,8 +524,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                                     <th>購入日時</th>
                                     <th>企業名 (コード)</th>
                                     <th>スコア</th>
-                                    <th>買付単価</th>
-                                    <th>100株購入額</th>
+                                    <th>買付単価 (100株購入額)</th>
                                     <th>目標利確</th>
                                     <th>損切り</th>
                                     <th>最新株価</th>
@@ -702,7 +698,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             let totalPnlYen = 0;
 
             if (!history || history.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="13" class="text-center text-muted">現在、推奨シグナルデータはありません。「➕ 画面から推奨候補銘柄を追加」ボタンを押して登録できます。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted">現在、推奨シグナルデータはありません。「➕ 画面から推奨候補銘柄を追加」ボタンを押して登録できます。</td></tr>';
                 document.getElementById('aiWinRateText').innerText = '0.0%';
                 document.getElementById('aiWinLossText').innerText = '0勝 0敗';
                 document.getElementById('aiReturnText').innerText = '+0円';
@@ -744,8 +740,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                         <td><small class="fw-bold">${{dtFormatted}}</small></td>
                         <td><strong>${{item.name || item.ticker_code || item.ticker}}</strong></td>
                         <td><span class="badge bg-secondary">${{item.score || 75}}点</span></td>
-                        <td>${{entryP.toLocaleString()}}円</td>
-                        <td>${{(simAmt / 10000).toFixed(1)}}万円</td>
+                        <td><strong>${{entryP.toLocaleString()}}円</strong><br><small class="text-muted">(${{(simAmt / 10000).toFixed(1)}}万円)</small></td>
                         <td>${{targetP.toLocaleString()}}円</td>
                         <td>${{stopP.toLocaleString()}}円</td>
                         <td>${{currP.toLocaleString()}}円</td>
@@ -781,7 +776,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             let totalPnl = 0;
 
             if (!portfolio || portfolio.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="13" class="text-center text-muted">現在、実際の購入保有銘柄はありません。「➕ 画面から購入銘柄を即時追加」ボタンを押して登録してください。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted">現在、実際の購入保有銘柄はありません。「➕ 画面から購入銘柄を即時追加」ボタンを押して登録してください。</td></tr>';
                 document.getElementById('totalInvestText').innerText = '0.0万円';
                 document.getElementById('totalPnlText').innerText = '+0円';
                 return;
@@ -817,8 +812,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                         <td><small class="fw-bold">${{bDtFormatted}}</small></td>
                         <td><strong>${{item.name || item.ticker}}</strong></td>
                         <td><span class="badge bg-secondary">${{item.score || 70}}点</span></td>
-                        <td>${{buyP.toLocaleString()}}円</td>
-                        <td>${{(invest / 10000).toFixed(1)}}万円</td>
+                        <td><strong>${{buyP.toLocaleString()}}円</strong><br><small class="text-muted">(${{(invest / 10000).toFixed(1)}}万円)</small></td>
                         <td>${{targetP.toLocaleString()}}円</td>
                         <td>${{stopP.toLocaleString()}}円</td>
                         <td>${{currP.toLocaleString()}}円</td>
