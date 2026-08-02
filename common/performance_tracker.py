@@ -87,7 +87,6 @@ def record_signal(ticker: str, entry_price: float, target_price: float, stop_los
     save_history(history)
 
 def calculate_real_atr(df: pd.DataFrame) -> float:
-    """14日間の本物のATR（Average True Range）を実測計算"""
     if df is None or len(df) < 2:
         return 0.0
     try:
@@ -104,10 +103,6 @@ def calculate_real_atr(df: pd.DataFrame) -> float:
         return 0.0
 
 def fetch_real_stock_metrics(code: str, df: pd.DataFrame) -> dict:
-    """
-    yfinance の info から本物の PER/PBR/EPS/配当利回り を動的取得。
-    仮のダミー数字を全廃
-    """
     symbol = code + ".T" if not code.endswith(".T") else code
     metrics = {}
     
@@ -129,7 +124,6 @@ def fetch_real_stock_metrics(code: str, df: pd.DataFrame) -> dict:
             
         div_yield = info.get("dividendYield")
         if div_yield:
-            # yfinance dividendYieldは0.0326のように小数で返ることが多い
             val = float(div_yield)
             if val < 1.0:
                 val = val * 100
@@ -144,9 +138,6 @@ def fetch_real_stock_metrics(code: str, df: pd.DataFrame) -> dict:
     return metrics
 
 def fetch_stock_data_robust(tickers: list, force_refresh: bool = False):
-    """
-    10分間完全キャッシュ。threads=True + period='1mo' で爆速並列取得
-    """
     global _STOCK_DATA_CACHE, _CACHE_TIMESTAMP
     now = time.time()
     
@@ -219,7 +210,6 @@ def update_signal_performance(force_refresh: bool = False):
         code = item.get("ticker_code", item.get("ticker", ""))
         symbol = code + ".T"
         
-        # セーフガード: closed_atが推奨日より過去であれば強制的リセット
         rec_date_str = item.get("date", "08-02").split()[0]
         closed_at_str = item.get("closed_at", "-")
         if closed_at_str != "-" and " " in closed_at_str:
@@ -271,7 +261,6 @@ def update_signal_performance(force_refresh: bool = False):
                 item["max_price"] = round(max(item.get("max_price", entry_p), high_price), 1)
                 item["min_price"] = round(min(item.get("min_price", entry_p), low_price), 1)
                 
-                # 【ユーザーご指定ルール】損益は固定値ではなく、推奨日時以降の「最新/最終株価」との差額で実測比較！
                 item["return_pct"] = round(((latest_close - entry_p) / entry_p) * 100, 2)
                 item["pnl_yen"] = round((latest_close - entry_p) * 100, 0)
                 
@@ -300,7 +289,6 @@ def update_signal_performance(force_refresh: bool = False):
                     item["status"] = "OPEN"
                     item["closed_at"] = "-"
 
-                # 本物の指標をリアルタイム補填（ダミー数字全廃）
                 real_m = fetch_real_stock_metrics(code, df)
                 if not item.get("details"):
                     item["details"] = {}
@@ -356,7 +344,6 @@ def update_signal_performance(force_refresh: bool = False):
                 item["current_price"] = round(latest_close, 1)
                 item["eval_amount"] = latest_close * shares
                 
-                # 【ユーザーご指定ルール】買付単価と最新株価の比較で損益額・%を計算
                 item["pnl_yen"] = round((latest_close - buy_p) * shares, 0)
                 item["pnl_pct"] = round(((latest_close - buy_p) / buy_p) * 100, 2) if buy_p > 0 else 0.0
                 
@@ -544,7 +531,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                         <div class="card card-stat bg-white p-3 text-center">
                             <div class="text-muted">目標勝率</div>
                             <div class="display-5 text-primary fw-bold" id="aiWinRateText">{win_rate:.1f}%</div>
-                            <small id="aiWinLossText">{wins}件目標到達 {losses}件損切到達</small>
+                            <small id="aiWinLossText">{wins}件到達 {losses}件損切到達</small>
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -598,7 +585,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             <div class="tab-pane fade" id="real-panel" role="tabpanel">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h4>💼 実際に購入した銘柄リスト</h4>
-                    <button class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#addStockModal">
+                    <button class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#addStockModal" onclick="populateRecommendedDropdown()">
                         ➕ 画面から購入銘柄を即時追加
                     </button>
                 </div>
@@ -693,7 +680,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
         </div>
     </div>
 
-    <!-- リアル購入銘柄登録モーダル -->
+    <!-- リアル購入銘柄登録モーダル（AI推奨銘柄からのワンクリック自動入力機能付き） -->
     <div class="modal fade" id="addStockModal" tabindex="-1" aria-labelledby="addStockModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -703,6 +690,12 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 </div>
                 <div class="modal-body">
                     <form id="addStockForm">
+                        <div class="mb-3 bg-light p-3 border rounded">
+                            <label class="form-label fw-bold text-primary">💡 AI推奨候補銘柄から選んでワンクリック選択</label>
+                            <select class="form-select" id="selectRecommendedDropdown" onchange="onSelectRecommendedStock(this)">
+                                <option value="">-- AI推奨候補から選択（選択すると下へ自動入力） --</option>
+                            </select>
+                        </div>
                         <div class="mb-3">
                             <label class="form-label">銘柄コード (4桁)</label>
                             <input type="text" class="form-control" id="inputTicker" placeholder="例: 7203" required>
@@ -771,7 +764,6 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             if (!details || Object.keys(details).length === 0) return '<small class="text-muted">-</small>';
             let lines = [];
             
-            // ダミー・仮の数字は一切使わず、存在する本物の指標のみ表示
             const per = details.PER || details.per;
             const pbr = details.PBR || details.pbr;
             const eps = details.EPS || details.eps;
@@ -793,6 +785,34 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             if (theme && theme !== 'テスト') lines.push(`<span class="badge bg-light text-dark border">${{theme}}</span>`);
             
             return lines.length > 0 ? `<small>${{lines.join('<br>')}}</small>` : '<small class="text-muted">-</small>';
+        }}
+
+        async function populateRecommendedDropdown() {{
+            const history = await fetchHistoryAPI();
+            const dropdown = document.getElementById('selectRecommendedDropdown');
+            dropdown.innerHTML = '<option value="">-- AI推奨候補から選択（選択すると下へ自動入力） --</option>';
+            
+            if (history && history.length > 0) {{
+                history.forEach(item => {{
+                    const code = item.ticker_code || item.ticker;
+                    const name = item.name || code;
+                    const price = item.entry_price || 0;
+                    dropdown.innerHTML += `<option value="${{code}}" data-name="${{name}}" data-price="${{price}}">${{code}}: ${{name}} (推奨株価: ${{price.toLocaleString()}}円)</option>`;
+                }});
+            }}
+        }}
+
+        function onSelectRecommendedStock(elem) {{
+            const selectedOpt = elem.options[elem.selectedIndex];
+            if (!selectedOpt || !selectedOpt.value) return;
+
+            const code = selectedOpt.value;
+            const name = selectedOpt.getAttribute('data-name');
+            const price = selectedOpt.getAttribute('data-price');
+
+            document.getElementById('inputTicker').value = code;
+            document.getElementById('inputName').value = name;
+            document.getElementById('inputBuyPrice').value = price;
         }}
 
         async function renderAIHistory() {{
@@ -825,7 +845,6 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 const currP = parseFloat(item.current_price || entryP);
                 const simAmt = entryP * 100;
                 
-                // 【ルール】損益は固定値ではなく、推奨日時価格と最新株価との差額
                 const pnlYen = (currP - entryP) * 100;
                 const retP = entryP > 0 ? ((currP - entryP) / entryP * 100) : 0;
 
@@ -903,7 +922,6 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 const currP = parseFloat(item.current_price || buyP);
                 const invest = buyP * shares;
                 
-                // 【ルール】買付単価と最新株価とのリアルタイム差額
                 const pnlY = (currP - buyP) * shares;
                 const pnlP = buyP > 0 ? ((currP - buyP) / buyP * 100) : 0;
                 
