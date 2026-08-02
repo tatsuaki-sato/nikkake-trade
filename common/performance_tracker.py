@@ -212,29 +212,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
     win_rate = (wins / total_closed * 100) if total_closed > 0 else 0.0
     total_return = sum([i.get("return_pct", 0) for i in history if i.get("status") in ["WIN", "LOSS"]])
 
-    ai_rows_html = ""
-    for item in reversed(history):
-        st = item.get("status")
-        name = item.get("name", get_company_name(item.get("ticker", "")))
-        badge = '<span class="badge bg-success">WIN 利確</span>' if st == "WIN" else (
-            '<span class="badge bg-danger">LOSS 損切</span>' if st == "LOSS" else '<span class="badge bg-warning text-dark">OPEN 監視中</span>'
-        )
-        sim_amt = item.get("entry_price", 0) * 100
-        ai_rows_html += f"""
-        <tr>
-            <td>{item.get('date')}</td>
-            <td><strong>{name}</strong></td>
-            <td><span class="badge bg-secondary">{item.get('score')}点</span></td>
-            <td>{item.get('entry_price'):,.1f}円</td>
-            <td>{sim_amt/10000:,.1f}万円</td>
-            <td>{item.get('target_price'):,.1f}円</td>
-            <td>{item.get('stop_loss_price'):,.1f}円</td>
-            <td>{item.get('current_price'):,.1f}円</td>
-            <td><strong class="{'text-success' if item.get('return_pct',0)>=0 else 'text-danger'}">{item.get('return_pct'):+.2f}%</strong></td>
-            <td>{badge}</td>
-        </tr>
-        """
-
+    server_history_json = json.dumps(history, ensure_ascii=False)
     server_real_json = json.dumps(real_portfolio, ensure_ascii=False)
 
     html_content = f"""<!DOCTYPE html>
@@ -260,7 +238,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 
         <ul class="nav nav-tabs mb-4 fs-5" id="myTab" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="ai-tab" data-bs-toggle="tab" data-bs-target="#ai-panel" type="button" role="tab">🤖 AI推奨シグナル成績</button>
+                <button class="nav-link active" id="ai-tab" data-bs-toggle="tab" data-bs-target="#ai-panel" type="button" role="tab">🤖 AI推奨シグナル実測成績</button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="real-tab" data-bs-toggle="tab" data-bs-target="#real-panel" type="button" role="tab">💼 My リアル購入ポートフォリオ</button>
@@ -274,28 +252,31 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     <div class="col-md-4">
                         <div class="card card-stat bg-white p-3 text-center">
                             <div class="text-muted">通算勝率</div>
-                            <div class="display-5 text-primary fw-bold">{win_rate:.1f}%</div>
-                            <small>{wins}勝 {losses}敗 ({total_closed}件決済完了)</small>
+                            <div class="display-5 text-primary fw-bold" id="aiWinRateText">{win_rate:.1f}%</div>
+                            <small id="aiWinLossText">{wins}勝 {losses}敗 ({total_closed}件決済完了)</small>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="card card-stat bg-white p-3 text-center">
                             <div class="text-muted">確定累積リターン</div>
-                            <div class="display-5 {'text-success' if total_return >= 0 else 'text-danger'} fw-bold">{total_return:+.1f}%</div>
+                            <div class="display-5 {'text-success' if total_return >= 0 else 'text-danger'} fw-bold" id="aiReturnText">{total_return:+.1f}%</div>
                             <small>全決済シグナル合計</small>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="card card-stat bg-white p-3 text-center">
                             <div class="text-muted">総シグナル数</div>
-                            <div class="display-5 text-dark fw-bold">{len(history)}件</div>
-                            <small>監視中: {len(history) - total_closed}件</small>
+                            <div class="display-5 text-dark fw-bold" id="aiTotalCountText">{len(history)}件</div>
+                            <small id="aiOpenCountText">監視中: {len(history) - total_closed}件</small>
                         </div>
                     </div>
                 </div>
 
                 <div class="card bg-white p-4 card-stat">
-                    <h5 class="card-title mb-3">📋 AI推奨シグナル実測追跡リスト</h5>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">📋 AI推奨シグナル実測追跡リスト</h5>
+                        <small class="text-muted">不要なシミュレーションシグナルは右端の「削除」ボタンで消去可能</small>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
@@ -310,10 +291,11 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                                     <th>最新/最終株価</th>
                                     <th>リターン</th>
                                     <th>ステータス</th>
+                                    <th>操作</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {ai_rows_html if ai_rows_html else '<tr><td colspan="10" class="text-center text-muted">まだ推奨シグナルデータがありません</td></tr>'}
+                            <tbody id="aiTableBody">
+                                <!-- JS動的レンダリング -->
                             </tbody>
                         </table>
                     </div>
@@ -415,7 +397,21 @@ def generate_html_dashboard(history: list, real_portfolio: list):
     </div>
 
     <script>
+        const serverHistory = {server_history_json};
         const serverPortfolio = {server_real_json};
+        
+        function getLocalHistory() {{
+            const stored = localStorage.getItem('user_ai_history');
+            if (stored) {{
+                try {{ return JSON.parse(stored); }} catch(e) {{}}
+            }}
+            return serverHistory;
+        }}
+
+        function saveLocalHistory(data) {{
+            localStorage.setItem('user_ai_history', JSON.stringify(data));
+            renderAIHistory();
+        }}
         
         function getLocalPortfolio() {{
             const stored = localStorage.getItem('user_real_portfolio');
@@ -428,6 +424,84 @@ def generate_html_dashboard(history: list, real_portfolio: list):
         function saveLocalPortfolio(data) {{
             localStorage.setItem('user_real_portfolio', JSON.stringify(data));
             renderRealPortfolio();
+        }}
+
+        function renderAIHistory() {{
+            const history = getLocalHistory();
+            const tbody = document.getElementById('aiTableBody');
+            tbody.innerHTML = '';
+
+            let wins = 0;
+            let losses = 0;
+            let totalClosed = 0;
+            let totalReturn = 0;
+
+            if (!history || history.length === 0) {{
+                tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">現在、実測推奨シグナルデータはありません。</td></tr>';
+                document.getElementById('aiWinRateText').innerText = '0.0%';
+                document.getElementById('aiWinLossText').innerText = '0勝 0敗';
+                document.getElementById('aiReturnText').innerText = '+0.0%';
+                document.getElementById('aiTotalCountText').innerText = '0件';
+                document.getElementById('aiOpenCountText').innerText = '監視中: 0件';
+                return;
+            }}
+
+            history.slice().reverse().forEach((item, revIndex) => {{
+                const originalIndex = history.length - 1 - revIndex;
+                const st = item.status;
+                const entryP = parseFloat(item.entry_price || 0);
+                const targetP = parseFloat(item.target_price || 0);
+                const stopP = parseFloat(item.stop_loss_price || 0);
+                const currP = parseFloat(item.current_price || entryP);
+                const retP = parseFloat(item.return_pct || 0);
+                const simAmt = entryP * 100;
+                
+                if (st === 'WIN') {{ wins++; totalClosed++; totalReturn += retP; }}
+                else if (st === 'LOSS') {{ losses++; totalClosed++; totalReturn += retP; }}
+
+                const badge = st === 'WIN' ? '<span class="badge bg-success">WIN 利確</span>' : (
+                    st === 'LOSS' ? '<span class="badge bg-danger">LOSS 損切</span>' : '<span class="badge bg-warning text-dark">OPEN 監視中</span>'
+                );
+
+                const retCls = retP >= 0 ? 'text-success' : 'text-danger';
+                const retSign = retP >= 0 ? '+' : '';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${{item.date || '-'}}</td>
+                        <td><strong>${{item.name || item.ticker_code || item.ticker}}</strong></td>
+                        <td><span class="badge bg-secondary">${{item.score || 60}}点</span></td>
+                        <td>${{entryP.toLocaleString()}}円</td>
+                        <td>${{(simAmt / 10000).toFixed(1)}}万円</td>
+                        <td>${{targetP.toLocaleString()}}円</td>
+                        <td>${{stopP.toLocaleString()}}円</td>
+                        <td>${{currP.toLocaleString()}}円</td>
+                        <td class="${{retCls}}"><strong>${{retSign}}${{retP.toFixed(2)}}%</strong></td>
+                        <td>${{badge}}</td>
+                        <td><button class="btn btn-sm btn-outline-danger" onclick="deleteAISignal(${{originalIndex}})">削除</button></td>
+                    </tr>
+                `;
+            }});
+
+            const winRate = totalClosed > 0 ? (wins / totalClosed * 100).toFixed(1) : '0.0';
+            document.getElementById('aiWinRateText').innerText = winRate + '%';
+            document.getElementById('aiWinLossText').innerText = `${{wins}}勝 ${{losses}}敗 (${{totalClosed}}件決済完了)`;
+            
+            const retSign = totalReturn >= 0 ? '+' : '';
+            const retElem = document.getElementById('aiReturnText');
+            retElem.innerText = retSign + totalReturn.toFixed(1) + '%';
+            retElem.className = 'display-5 fw-bold ' + (totalReturn >= 0 ? 'text-success' : 'text-danger');
+
+            document.getElementById('aiTotalCountText').innerText = history.length + '件';
+            document.getElementById('aiOpenCountText').innerText = '監視中: ' + (history.length - totalClosed) + '件';
+        }}
+
+        function deleteAISignal(index) {{
+            if (confirm('この実測シグナルを消去しますか？')) {{
+                const history = getLocalHistory();
+                history.splice(index, 1);
+                saveLocalHistory(history);
+            }}
         }}
 
         function renderRealPortfolio() {{
@@ -538,6 +612,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 
         document.addEventListener('DOMContentLoaded', () => {{
             document.getElementById('inputBuyDate').valueAsDate = new Date();
+            renderAIHistory();
             renderRealPortfolio();
         }});
     </script>

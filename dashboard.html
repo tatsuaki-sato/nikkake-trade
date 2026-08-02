@@ -16,12 +16,12 @@
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>🤖 trade - AI Signal & Real Portfolio Dashboard</h2>
-            <span class="badge bg-primary fs-6">更新: 2026-08-02 23:14</span>
+            <span class="badge bg-primary fs-6">更新: 2026-08-02 23:16</span>
         </div>
 
         <ul class="nav nav-tabs mb-4 fs-5" id="myTab" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="ai-tab" data-bs-toggle="tab" data-bs-target="#ai-panel" type="button" role="tab">🤖 AI推奨シグナル成績</button>
+                <button class="nav-link active" id="ai-tab" data-bs-toggle="tab" data-bs-target="#ai-panel" type="button" role="tab">🤖 AI推奨シグナル実測成績</button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="real-tab" data-bs-toggle="tab" data-bs-target="#real-panel" type="button" role="tab">💼 My リアル購入ポートフォリオ</button>
@@ -35,28 +35,31 @@
                     <div class="col-md-4">
                         <div class="card card-stat bg-white p-3 text-center">
                             <div class="text-muted">通算勝率</div>
-                            <div class="display-5 text-primary fw-bold">60.0%</div>
-                            <small>6勝 4敗 (10件決済完了)</small>
+                            <div class="display-5 text-primary fw-bold" id="aiWinRateText">60.0%</div>
+                            <small id="aiWinLossText">6勝 4敗 (10件決済完了)</small>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="card card-stat bg-white p-3 text-center">
                             <div class="text-muted">確定累積リターン</div>
-                            <div class="display-5 text-success fw-bold">+18.0%</div>
+                            <div class="display-5 text-success fw-bold" id="aiReturnText">+18.0%</div>
                             <small>全決済シグナル合計</small>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="card card-stat bg-white p-3 text-center">
                             <div class="text-muted">総シグナル数</div>
-                            <div class="display-5 text-dark fw-bold">10件</div>
-                            <small>監視中: 0件</small>
+                            <div class="display-5 text-dark fw-bold" id="aiTotalCountText">10件</div>
+                            <small id="aiOpenCountText">監視中: 0件</small>
                         </div>
                     </div>
                 </div>
 
                 <div class="card bg-white p-4 card-stat">
-                    <h5 class="card-title mb-3">📋 AI推奨シグナル実測追跡リスト</h5>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">📋 AI推奨シグナル実測追跡リスト</h5>
+                        <small class="text-muted">不要なシミュレーションシグナルは右端の「削除」ボタンで消去可能</small>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
@@ -71,140 +74,11 @@
                                     <th>最新/最終株価</th>
                                     <th>リターン</th>
                                     <th>ステータス</th>
+                                    <th>操作</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                
-        <tr>
-            <td>2026-08-02</td>
-            <td><strong>9432 NTT (日本電信電話)</strong></td>
-            <td><span class="badge bg-secondary">65点</span></td>
-            <td>152.4円</td>
-            <td>1.5万円</td>
-            <td>161.5円</td>
-            <td>146.3円</td>
-            <td>152.4円</td>
-            <td><strong class="text-danger">-4.00%</strong></td>
-            <td><span class="badge bg-danger">LOSS 損切</span></td>
-        </tr>
-        
-        <tr>
-            <td>2026-08-02</td>
-            <td><strong>8306 三菱UFJフィナンシャルG</strong></td>
-            <td><span class="badge bg-secondary">65点</span></td>
-            <td>3,571.0円</td>
-            <td>35.7万円</td>
-            <td>3,785.3円</td>
-            <td>3,428.2円</td>
-            <td>3,571.0円</td>
-            <td><strong class="text-success">+6.00%</strong></td>
-            <td><span class="badge bg-success">WIN 利確</span></td>
-        </tr>
-        
-        <tr>
-            <td>2026-08-02</td>
-            <td><strong>7203 トヨタ自動車</strong></td>
-            <td><span class="badge bg-secondary">65点</span></td>
-            <td>3,067.0円</td>
-            <td>30.7万円</td>
-            <td>3,251.0円</td>
-            <td>2,944.3円</td>
-            <td>3,067.0円</td>
-            <td><strong class="text-danger">-4.00%</strong></td>
-            <td><span class="badge bg-danger">LOSS 損切</span></td>
-        </tr>
-        
-        <tr>
-            <td>2026-08-02</td>
-            <td><strong>6701 NEC</strong></td>
-            <td><span class="badge bg-secondary">65点</span></td>
-            <td>4,740.0円</td>
-            <td>47.4万円</td>
-            <td>5,024.4円</td>
-            <td>4,550.4円</td>
-            <td>4,740.0円</td>
-            <td><strong class="text-success">+6.00%</strong></td>
-            <td><span class="badge bg-success">WIN 利確</span></td>
-        </tr>
-        
-        <tr>
-            <td>2026-08-02</td>
-            <td><strong>6702 富士通</strong></td>
-            <td><span class="badge bg-secondary">65点</span></td>
-            <td>3,659.0円</td>
-            <td>36.6万円</td>
-            <td>3,878.5円</td>
-            <td>3,512.6円</td>
-            <td>3,659.0円</td>
-            <td><strong class="text-success">+6.00%</strong></td>
-            <td><span class="badge bg-success">WIN 利確</span></td>
-        </tr>
-        
-        <tr>
-            <td>2026-08-02</td>
-            <td><strong>9984 ソフトバンクグループ</strong></td>
-            <td><span class="badge bg-secondary">65点</span></td>
-            <td>5,260.0円</td>
-            <td>52.6万円</td>
-            <td>5,575.6円</td>
-            <td>5,049.6円</td>
-            <td>5,260.0円</td>
-            <td><strong class="text-success">+6.00%</strong></td>
-            <td><span class="badge bg-success">WIN 利確</span></td>
-        </tr>
-        
-        <tr>
-            <td>2026-08-02</td>
-            <td><strong>6857 アドバンテスト</strong></td>
-            <td><span class="badge bg-secondary">65点</span></td>
-            <td>32,500.0円</td>
-            <td>325.0万円</td>
-            <td>34,450.0円</td>
-            <td>31,200.0円</td>
-            <td>32,500.0円</td>
-            <td><strong class="text-danger">-4.00%</strong></td>
-            <td><span class="badge bg-danger">LOSS 損切</span></td>
-        </tr>
-        
-        <tr>
-            <td>2026-08-02</td>
-            <td><strong>6920 レーザーテック</strong></td>
-            <td><span class="badge bg-secondary">65点</span></td>
-            <td>37,910.0円</td>
-            <td>379.1万円</td>
-            <td>40,184.6円</td>
-            <td>36,393.6円</td>
-            <td>37,910.0円</td>
-            <td><strong class="text-success">+6.00%</strong></td>
-            <td><span class="badge bg-success">WIN 利確</span></td>
-        </tr>
-        
-        <tr>
-            <td>2026-08-02</td>
-            <td><strong>8035 東京エレクトロン</strong></td>
-            <td><span class="badge bg-secondary">65点</span></td>
-            <td>55,500.0円</td>
-            <td>555.0万円</td>
-            <td>58,830.0円</td>
-            <td>53,280.0円</td>
-            <td>55,500.0円</td>
-            <td><strong class="text-success">+6.00%</strong></td>
-            <td><span class="badge bg-success">WIN 利確</span></td>
-        </tr>
-        
-        <tr>
-            <td>2026-08-02</td>
-            <td><strong>7203 トヨタ自動車</strong></td>
-            <td><span class="badge bg-secondary">85点</span></td>
-            <td>3,000.0円</td>
-            <td>30.0万円</td>
-            <td>3,270.0円</td>
-            <td>2,820.0円</td>
-            <td>3,067.0円</td>
-            <td><strong class="text-danger">-6.00%</strong></td>
-            <td><span class="badge bg-danger">LOSS 損切</span></td>
-        </tr>
-        
+                            <tbody id="aiTableBody">
+                                <!-- JS動的レンダリング -->
                             </tbody>
                         </table>
                     </div>
@@ -306,7 +180,21 @@
     </div>
 
     <script>
+        const serverHistory = [{"id": "7203.T_2026-08-02", "date": "2026-08-02", "ticker": "7203", "entry_price": 3000.0, "target_price": 3270.0, "stop_loss_price": 2820.0, "score": 85, "status": "LOSS", "current_price": 3067.0, "max_price": 3233.0, "min_price": 2708.0, "return_pct": -6.0, "details": {"Residual_Momentum": "テスト"}, "close_date": "2026-08-02"}, {"id": "8035_2026-08-02", "date": "2026-08-02", "ticker_code": "8035", "name": "8035 東京エレクトロン", "entry_price": 55500.0, "sim_amount": 5550000.0, "target_price": 58830.0, "stop_loss_price": 53280.0, "score": 65, "status": "WIN", "current_price": 55500.0, "max_price": 81260.0, "min_price": 48580.0, "return_pct": 6.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02"}, {"id": "6920_2026-08-02", "date": "2026-08-02", "ticker_code": "6920", "name": "6920 レーザーテック", "entry_price": 37910.0, "sim_amount": 3791000.0, "target_price": 40184.6, "stop_loss_price": 36393.6, "score": 65, "status": "WIN", "current_price": 37910.0, "max_price": 54080.0, "min_price": 33200.0, "return_pct": 6.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02"}, {"id": "6857_2026-08-02", "date": "2026-08-02", "ticker_code": "6857", "name": "6857 アドバンテスト", "entry_price": 32500.0, "sim_amount": 3250000.0, "target_price": 34450.0, "stop_loss_price": 31200.0, "score": 65, "status": "LOSS", "current_price": 32500.0, "max_price": 34200.0, "min_price": 24135.0, "return_pct": -4.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02"}, {"id": "9984_2026-08-02", "date": "2026-08-02", "ticker_code": "9984", "name": "9984 ソフトバンクグループ", "entry_price": 5260.0, "sim_amount": 526000.0, "target_price": 5575.6, "stop_loss_price": 5049.6, "score": 65, "status": "WIN", "current_price": 5260.0, "max_price": 6660.0, "min_price": 4500.0, "return_pct": 6.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02"}, {"id": "6702_2026-08-02", "date": "2026-08-02", "ticker_code": "6702", "name": "6702 富士通", "entry_price": 3659.0, "sim_amount": 365900.0, "target_price": 3878.54, "stop_loss_price": 3512.64, "score": 65, "status": "WIN", "current_price": 3659.0, "max_price": 3928.0, "min_price": 3181.0, "return_pct": 6.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02"}, {"id": "6701_2026-08-02", "date": "2026-08-02", "ticker_code": "6701", "name": "6701 NEC", "entry_price": 4740.0, "sim_amount": 474000.0, "target_price": 5024.4, "stop_loss_price": 4550.4, "score": 65, "status": "WIN", "current_price": 4740.0, "max_price": 5104.0, "min_price": 3912.0, "return_pct": 6.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02"}, {"id": "7203_2026-08-02", "date": "2026-08-02", "ticker_code": "7203", "name": "7203 トヨタ自動車", "entry_price": 3067.0, "sim_amount": 306700.0, "target_price": 3251.02, "stop_loss_price": 2944.32, "score": 65, "status": "LOSS", "current_price": 3067.0, "max_price": 3233.0, "min_price": 2708.0, "return_pct": -4.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02"}, {"id": "8306_2026-08-02", "date": "2026-08-02", "ticker_code": "8306", "name": "8306 三菱UFJフィナンシャルG", "entry_price": 3571.0, "sim_amount": 357100.0, "target_price": 3785.26, "stop_loss_price": 3428.16, "score": 65, "status": "WIN", "current_price": 3571.0, "max_price": 3813.0, "min_price": 3207.0, "return_pct": 6.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02"}, {"id": "9432_2026-08-02", "date": "2026-08-02", "ticker_code": "9432", "name": "9432 NTT (日本電信電話)", "entry_price": 152.39999389648438, "sim_amount": 15239.999389648438, "target_price": 161.54399353027344, "stop_loss_price": 146.303994140625, "score": 65, "status": "LOSS", "current_price": 152.39999389648438, "max_price": 161.1999969482422, "min_price": 142.60000610351562, "return_pct": -4.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02"}];
         const serverPortfolio = [];
+        
+        function getLocalHistory() {
+            const stored = localStorage.getItem('user_ai_history');
+            if (stored) {
+                try { return JSON.parse(stored); } catch(e) {}
+            }
+            return serverHistory;
+        }
+
+        function saveLocalHistory(data) {
+            localStorage.setItem('user_ai_history', JSON.stringify(data));
+            renderAIHistory();
+        }
         
         function getLocalPortfolio() {
             const stored = localStorage.getItem('user_real_portfolio');
@@ -319,6 +207,84 @@
         function saveLocalPortfolio(data) {
             localStorage.setItem('user_real_portfolio', JSON.stringify(data));
             renderRealPortfolio();
+        }
+
+        function renderAIHistory() {
+            const history = getLocalHistory();
+            const tbody = document.getElementById('aiTableBody');
+            tbody.innerHTML = '';
+
+            let wins = 0;
+            let losses = 0;
+            let totalClosed = 0;
+            let totalReturn = 0;
+
+            if (!history || history.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">現在、実測推奨シグナルデータはありません。</td></tr>';
+                document.getElementById('aiWinRateText').innerText = '0.0%';
+                document.getElementById('aiWinLossText').innerText = '0勝 0敗';
+                document.getElementById('aiReturnText').innerText = '+0.0%';
+                document.getElementById('aiTotalCountText').innerText = '0件';
+                document.getElementById('aiOpenCountText').innerText = '監視中: 0件';
+                return;
+            }
+
+            history.slice().reverse().forEach((item, revIndex) => {
+                const originalIndex = history.length - 1 - revIndex;
+                const st = item.status;
+                const entryP = parseFloat(item.entry_price || 0);
+                const targetP = parseFloat(item.target_price || 0);
+                const stopP = parseFloat(item.stop_loss_price || 0);
+                const currP = parseFloat(item.current_price || entryP);
+                const retP = parseFloat(item.return_pct || 0);
+                const simAmt = entryP * 100;
+                
+                if (st === 'WIN') { wins++; totalClosed++; totalReturn += retP; }
+                else if (st === 'LOSS') { losses++; totalClosed++; totalReturn += retP; }
+
+                const badge = st === 'WIN' ? '<span class="badge bg-success">WIN 利確</span>' : (
+                    st === 'LOSS' ? '<span class="badge bg-danger">LOSS 損切</span>' : '<span class="badge bg-warning text-dark">OPEN 監視中</span>'
+                );
+
+                const retCls = retP >= 0 ? 'text-success' : 'text-danger';
+                const retSign = retP >= 0 ? '+' : '';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${item.date || '-'}</td>
+                        <td><strong>${item.name || item.ticker_code || item.ticker}</strong></td>
+                        <td><span class="badge bg-secondary">${item.score || 60}点</span></td>
+                        <td>${entryP.toLocaleString()}円</td>
+                        <td>${(simAmt / 10000).toFixed(1)}万円</td>
+                        <td>${targetP.toLocaleString()}円</td>
+                        <td>${stopP.toLocaleString()}円</td>
+                        <td>${currP.toLocaleString()}円</td>
+                        <td class="${retCls}"><strong>${retSign}${retP.toFixed(2)}%</strong></td>
+                        <td>${badge}</td>
+                        <td><button class="btn btn-sm btn-outline-danger" onclick="deleteAISignal(${originalIndex})">削除</button></td>
+                    </tr>
+                `;
+            });
+
+            const winRate = totalClosed > 0 ? (wins / totalClosed * 100).toFixed(1) : '0.0';
+            document.getElementById('aiWinRateText').innerText = winRate + '%';
+            document.getElementById('aiWinLossText').innerText = `${wins}勝 ${losses}敗 (${totalClosed}件決済完了)`;
+            
+            const retSign = totalReturn >= 0 ? '+' : '';
+            const retElem = document.getElementById('aiReturnText');
+            retElem.innerText = retSign + totalReturn.toFixed(1) + '%';
+            retElem.className = 'display-5 fw-bold ' + (totalReturn >= 0 ? 'text-success' : 'text-danger');
+
+            document.getElementById('aiTotalCountText').innerText = history.length + '件';
+            document.getElementById('aiOpenCountText').innerText = '監視中: ' + (history.length - totalClosed) + '件';
+        }
+
+        function deleteAISignal(index) {
+            if (confirm('この実測シグナルを消去しますか？')) {
+                const history = getLocalHistory();
+                history.splice(index, 1);
+                saveLocalHistory(history);
+            }
         }
 
         function renderRealPortfolio() {
@@ -429,6 +395,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('inputBuyDate').valueAsDate = new Date();
+            renderAIHistory();
             renderRealPortfolio();
         });
     </script>
