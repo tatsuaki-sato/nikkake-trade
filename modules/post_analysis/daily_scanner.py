@@ -4,29 +4,24 @@ from datetime import datetime
 import sys
 import os
 
-# プロジェクトルートディレクトリをパスに追加
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
 from common.notifier import notify
-# 今後、news_scraper もモジュール配下に移動します
-from modules.post_analysis.news_scraper import get_latest_news
+from modules.post_analysis.advanced_scraper import get_x_sentiment_score, get_kabutan_news
+from modules.post_analysis.pro_analyzer import calculate_pro_score
 
-# 代表的な日本株（テスト用）
 TARGET_TICKERS = [
     "7203.T", "9984.T", "6920.T", "8035.T", "6861.T", 
-    "7974.T", "6758.T", "9432.T", "8306.T", "4063.T", 
-    "6098.T", "4502.T", "8001.T", "8031.T", "4568.T", 
-    "6501.T", "6954.T", "3382.T", "6367.T", "7267.T"
+    "7974.T", "6758.T", "9432.T", "8306.T", "4063.T"
 ]
 
-def run_daily_scanner(vol_multiplier: float = 3.0, vol_ma_length: int = 10):
+def run_daily_scanner():
     """
-    市場終了後（15:30）に実行される事後分析スキャナー
+    プロフェッショナル水準の事後分析スキャナー
     """
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 事後分析（デイリースキャナー）起動...")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] PRO事後分析スキャナー起動...")
     
     try:
-        data = yf.download(TARGET_TICKERS, period="1mo", group_by="ticker", progress=False)
+        data = yf.download(TARGET_TICKERS, period="6mo", group_by="ticker", progress=False)
     except Exception as e:
         print(f"データ取得エラー: {e}")
         return
@@ -36,58 +31,64 @@ def run_daily_scanner(vol_multiplier: float = 3.0, vol_ma_length: int = 10):
     for ticker in TARGET_TICKERS:
         try:
             df = data[ticker].copy()
-            if len(df) < vol_ma_length + 1:
+            if len(df) < 50:
                 continue
             df = df.dropna()
-            if df.empty:
-                continue
 
-            df['Vol_MA'] = df['Volume'].rolling(window=vol_ma_length).mean()
-            latest_day = df.iloc[-1]
-            prev_day = df.iloc[-2]
+            # 1. センチメント分析（Xの話題度）
+            stock_name = ticker.replace('.T', '') # 本格運用時は企業名マッピングを推奨
+            sentiment = get_x_sentiment_score(stock_name)
             
-            if pd.isna(latest_day['Vol_MA']):
-                continue
-
-            is_vol_surge = latest_day['Volume'] >= (latest_day['Vol_MA'] * vol_multiplier)
-            is_price_up = latest_day['Close'] > prev_day['Close']
+            # 2. プロスコア算出（TA + ファンダ推測）
+            pro_result = calculate_pro_score(df, ticker, sentiment)
+            score = pro_result['total_score']
             
-            if is_vol_surge and is_price_up:
-                # ニュースの自動取得
-                news = get_latest_news(ticker, limit=3)
+            # 80点以上のプラチナ銘柄のみを抽出
+            # ※テスト用に閾値を下げたい場合はここを変更
+            if score >= 70: 
+                # 株探から最新テーマ/ニュース取得
+                news = get_kabutan_news(ticker)
                 
                 hit_list.append({
                     "銘柄コード": ticker.replace('.T', ''),
-                    "終値": latest_day['Close'],
-                    "出来高倍率": round(latest_day['Volume'] / latest_day['Vol_MA'], 1),
+                    "終値": df.iloc[-1]['Close'],
+                    "スコア": score,
+                    "詳細": pro_result['details'],
                     "ニュース": news
                 })
         except Exception:
             continue
 
-    # === 結果の出力と通知 ===
     notify_text = ""
     if len(hit_list) > 0:
-        notify_text += f"📝 **【事後分析】本日の激アツ銘柄レポート**\n\n"
+        notify_text += f"👑 **【PRO事後分析】プラチナ銘柄レポート**\n"
+        notify_text += f"機関投資家水準のアルゴリズムが、総合スコア高得点の銘柄を検出しました。\n\n"
+        
+        # スコアが高い順にソート
+        hit_list.sort(key=lambda x: x['スコア'], reverse=True)
         
         for hit in hit_list:
             tv_link = f"https://jp.tradingview.com/chart/?symbol=TSE%3A{hit['銘柄コード']}"
-            notify_text += f"📈 **{hit['銘柄コード']}** (出来高 {hit['出来高倍率']}倍)\n"
+            notify_text += f"🔥 **{hit['銘柄コード']}** (総合スコア: **{hit['スコア']}点** / 終値 {hit['終値']:.1f}円)\n"
             notify_text += f"・チャート: {tv_link}\n"
-            notify_text += f"・**関連ニュース（動意づいた理由の候補）**:\n"
+            notify_text += f"・**【高評価の理由】**\n"
+            for k, v in hit['詳細'].items():
+                if "(0点)" not in v:
+                    notify_text += f"  - {v}\n"
             
+            notify_text += f"・**【最新テーマ / IR】**(株探より)\n"
             if hit['ニュース']:
                 for n in hit['ニュース']:
-                    notify_text += f"  {n}\n"
+                    notify_text += f"  - {n}\n"
             else:
-                notify_text += f"  (※直近の主要ニュースは見つかりませんでした)\n"
+                notify_text += f"  - 特筆すべきニュースなし\n"
             notify_text += "\n"
             
         notify(notify_text)
             
     else:
-        notify_text = "📝 **【事後分析】本日の総合レポート**\n本日は異常な動き（出来高急増）をしている大型株は検出されませんでした。"
+        notify_text = "📝 **【PRO事後分析】本日の総合レポート**\nプロ水準のスコアリングにおいて、本日80点を超える優良シグナル銘柄は検出されませんでした。"
         notify(notify_text)
 
 if __name__ == "__main__":
-    run_daily_scanner(vol_multiplier=3.0, vol_ma_length=10)
+    run_daily_scanner()
