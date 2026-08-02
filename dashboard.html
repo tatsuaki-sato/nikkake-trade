@@ -22,7 +22,7 @@
                 <span id="updateSpinner" class="spinner-border spinner-border-sm text-primary me-2 d-none" role="status"></span>
                 <span id="updateStatusText" class="text-muted me-3 small">10分キャッシュ有効中</span>
                 <button class="btn btn-outline-primary btn-sm me-2" onclick="refreshData(true)">🔄 データ再読み込み (手動更新)</button>
-                <span class="badge bg-primary fs-6">更新: 08-03 01:13</span>
+                <span class="badge bg-primary fs-6">更新: 08-03 01:27</span>
             </div>
         </div>
 
@@ -48,16 +48,16 @@
                 <div class="row mb-4">
                     <div class="col-md-4">
                         <div class="card card-stat bg-white p-3 text-center">
-                            <div class="text-muted">通算勝率</div>
+                            <div class="text-muted">目標勝率</div>
                             <div class="display-5 text-primary fw-bold" id="aiWinRateText">0.0%</div>
-                            <small id="aiWinLossText">0勝 0敗 (0件決済完了)</small>
+                            <small id="aiWinLossText">0件目標到達 0件損切到達</small>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="card card-stat bg-white p-3 text-center">
-                            <div class="text-muted">確定累積損益 (100株計)</div>
+                            <div class="text-muted">推奨時からの最新評価損益 (100株計)</div>
                             <div class="display-5 text-success fw-bold" id="aiReturnText">+0円</div>
-                            <small id="aiReturnPctText">全決済リターン通算: +0.0%</small>
+                            <small id="aiReturnPctText">最新評価リターン通算: +0.0%</small>
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -72,7 +72,7 @@
                 <div class="card bg-white p-4 card-stat">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="card-title mb-0">📋 AI推奨シグナル実測追跡リスト</h5>
-                        <small class="text-muted">推奨日時〜実際の利確/損切り決着日付・100株損益額・指標(PER/EPS/ATR)まで完全計算</small>
+                        <small class="text-muted">推奨日時〜最新株価比較の最新損益額(%)・本物の指標(PER/EPS/ATR)を表示</small>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
@@ -119,9 +119,9 @@
                     </div>
                     <div class="col-md-6">
                         <div class="card card-stat bg-white p-3 text-center">
-                            <div class="text-muted">リアル評価損益合計</div>
+                            <div class="text-muted">買付日時からの評価損益合計</div>
                             <div class="display-5 fw-bold" id="totalPnlText">+0円</div>
-                            <small>含み益 / 含み損</small>
+                            <small>買付価格 vs 最新株価</small>
                         </div>
                     </div>
                 </div>
@@ -273,28 +273,32 @@
             return dtStr;
         }
 
-        function formatMetricsHTML(details, entryP) {
-            if (!details) return '<small class="text-muted">-</small>';
+        function formatMetricsHTML(details) {
+            if (!details || Object.keys(details).length === 0) return '<small class="text-muted">-</small>';
             let lines = [];
             
-            const per = details.PER || details.per || '14.2倍';
-            const pbr = details.PBR || details.pbr || '1.1倍';
-            const eps = details.EPS || details.eps || `${(entryP * 0.08).toFixed(1)}円`;
-            const epsGrowth = details.EPS成長率 || details.eps_growth || '+12.5%';
-            const divYield = details.配当利回り || details.dividend_yield || '3.2%';
-            const atrVal = details.ATR || `±${roundVal(entryP * 0.02)}円`;
-            const theme = details.Theme || details.theme || '';
+            // ダミー・仮の数字は一切使わず、存在する本物の指標のみ表示
+            const per = details.PER || details.per;
+            const pbr = details.PBR || details.pbr;
+            const eps = details.EPS || details.eps;
+            const divYield = details.配当利回り || details.dividend_yield;
+            const atrVal = details.ATR || details.atr;
+            const theme = details.Theme || details.theme || details.Residual_Momentum;
 
-            lines.push(`PER: ${per} | PBR: ${pbr}`);
-            lines.push(`EPS: ${eps} (成長 ${epsGrowth})`);
-            lines.push(`配当: ${divYield} / ATR: ${atrVal}`);
-            if (theme) lines.push(`<span class="badge bg-light text-dark border">${theme}</span>`);
+            let row1 = [];
+            if (per) row1.push(`PER: ${per}`);
+            if (pbr) row1.push(`PBR: ${pbr}`);
+            if (row1.length > 0) lines.push(row1.join(' | '));
+
+            let row2 = [];
+            if (eps) row2.push(`EPS: ${eps}`);
+            if (divYield) row2.push(`配当: ${divYield}`);
+            if (row2.length > 0) lines.push(row2.join(' / '));
+
+            if (atrVal) lines.push(`ATR: ${atrVal}`);
+            if (theme && theme !== 'テスト') lines.push(`<span class="badge bg-light text-dark border">${theme}</span>`);
             
-            return `<small>${lines.join('<br>')}</small>`;
-        }
-
-        function roundVal(val) {
-            return Math.round(val);
+            return lines.length > 0 ? `<small>${lines.join('<br>')}</small>` : '<small class="text-muted">-</small>';
         }
 
         async function renderAIHistory() {
@@ -311,7 +315,7 @@
             if (!history || history.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted">現在、推奨シグナルデータはありません。「➕ 画面から推奨候補銘柄を追加」ボタンを押して登録できます。</td></tr>';
                 document.getElementById('aiWinRateText').innerText = '0.0%';
-                document.getElementById('aiWinLossText').innerText = '0勝 0敗';
+                document.getElementById('aiWinLossText').innerText = '0件到達 0件到達';
                 document.getElementById('aiReturnText').innerText = '+0円';
                 document.getElementById('aiTotalCountText').innerText = '0件';
                 document.getElementById('aiOpenCountText').innerText = '監視中: 0件';
@@ -325,26 +329,28 @@
                 const targetP = parseFloat(item.target_price || 0);
                 const stopP = parseFloat(item.stop_loss_price || 0);
                 const currP = parseFloat(item.current_price || entryP);
-                const retP = parseFloat(item.return_pct || 0);
                 const simAmt = entryP * 100;
                 
-                let pnlYen = item.pnl_yen !== undefined ? parseFloat(item.pnl_yen) : (currP - entryP) * 100;
-                if (st === 'WIN') { pnlYen = (targetP - entryP) * 100; }
-                else if (st === 'LOSS') { pnlYen = (stopP - entryP) * 100; }
+                // 【ルール】損益は固定値ではなく、推奨日時価格と最新株価との差額
+                const pnlYen = (currP - entryP) * 100;
+                const retP = entryP > 0 ? ((currP - entryP) / entryP * 100) : 0;
 
                 const dtFormatted = formatNoYear(item.date);
                 const closedAtFormatted = formatNoYear(item.closed_at);
                 
-                if (st === 'WIN') { wins++; totalClosed++; totalReturnPct += retP; totalPnlYen += pnlYen; }
-                else if (st === 'LOSS') { losses++; totalClosed++; totalReturnPct += retP; totalPnlYen += pnlYen; }
+                if (st === 'WIN') { wins++; totalClosed++; }
+                else if (st === 'LOSS') { losses++; totalClosed++; }
+                
+                totalReturnPct += retP;
+                totalPnlYen += pnlYen;
 
-                const badge = st === 'WIN' ? '<span class="badge bg-success">WIN 利確</span>' : (
-                    st === 'LOSS' ? '<span class="badge bg-danger">LOSS 損切</span>' : '<span class="badge bg-warning text-dark">OPEN 監視中</span>'
+                const badge = st === 'WIN' ? '<span class="badge bg-success">WIN 利確到達</span>' : (
+                    st === 'LOSS' ? '<span class="badge bg-danger">LOSS 損切到達</span>' : '<span class="badge bg-warning text-dark">OPEN 監視中</span>'
                 );
 
                 const retCls = pnlYen >= 0 ? 'text-success' : 'text-danger';
                 const retSign = pnlYen >= 0 ? '+' : '';
-                const metricsHTML = formatMetricsHTML(item.details, entryP);
+                const metricsHTML = formatMetricsHTML(item.details);
 
                 const priceCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `${currP.toLocaleString()}円`;
                 const pnlCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `<strong>${retSign}${Math.round(pnlYen).toLocaleString()}円 (${retSign}${retP.toFixed(2)}%)</strong>`;
@@ -370,14 +376,14 @@
 
             const winRate = totalClosed > 0 ? (wins / totalClosed * 100).toFixed(1) : '0.0';
             document.getElementById('aiWinRateText').innerText = winRate + '%';
-            document.getElementById('aiWinLossText').innerText = `${wins}勝 ${losses}敗 (${totalClosed}件決済完了)`;
+            document.getElementById('aiWinLossText').innerText = `${wins}件到達 ${losses}件到達 (${totalClosed}件判定済み)`;
             
             const retSign = totalPnlYen >= 0 ? '+' : '';
             const retElem = document.getElementById('aiReturnText');
             retElem.innerText = retSign + Math.round(totalPnlYen).toLocaleString() + '円';
             retElem.className = 'display-5 fw-bold ' + (totalPnlYen >= 0 ? 'text-success' : 'text-danger');
 
-            document.getElementById('aiReturnPctText').innerText = '全決済リターン通算: ' + (totalReturnPct >= 0 ? '+' : '') + totalReturnPct.toFixed(1) + '%';
+            document.getElementById('aiReturnPctText').innerText = '最新評価リターン通算: ' + (totalReturnPct >= 0 ? '+' : '') + totalReturnPct.toFixed(1) + '%';
             document.getElementById('aiTotalCountText').innerText = history.length + '件';
             document.getElementById('aiOpenCountText').innerText = '監視中: ' + (history.length - totalClosed) + '件';
         }
@@ -402,13 +408,16 @@
                 const shares = parseInt(item.shares || 100);
                 const currP = parseFloat(item.current_price || buyP);
                 const invest = buyP * shares;
+                
+                // 【ルール】買付単価と最新株価とのリアルタイム差額
                 const pnlY = (currP - buyP) * shares;
                 const pnlP = buyP > 0 ? ((currP - buyP) / buyP * 100) : 0;
+                
                 const targetP = parseFloat(item.target_price || (buyP * 1.06));
                 const stopP = parseFloat(item.stop_loss_price || (buyP * 0.96));
                 const st = item.status || 'HOLD 保有中';
                 const closedAtFormatted = formatNoYear(item.closed_at || '-');
-                const metricsHTML = formatMetricsHTML(item.details, buyP);
+                const metricsHTML = formatMetricsHTML(item.details);
 
                 totalInvest += invest;
                 totalPnl += pnlY;
@@ -418,8 +427,8 @@
                 const bDtFormatted = formatNoYear(item.buy_date);
                 const itemId = item.id || index;
 
-                const badge = st.includes('WIN') ? '<span class="badge bg-success">WIN 利確</span>' : (
-                    st.includes('LOSS') ? '<span class="badge bg-danger">LOSS 損切</span>' : '<span class="badge bg-primary">HOLD 保有中</span>'
+                const badge = st.includes('WIN') ? '<span class="badge bg-success">WIN 利確到達</span>' : (
+                    st.includes('LOSS') ? '<span class="badge bg-danger">LOSS 損切到達</span>' : '<span class="badge bg-primary">HOLD 保有中</span>'
                 );
 
                 const priceCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `${currP.toLocaleString()}円`;
@@ -466,7 +475,6 @@
                 await fetch(url, { method: 'POST' });
             } catch(e) {}
 
-            // 1.5秒後に更新完了データへ切り替え
             setTimeout(async () => {
                 isFetchingBackground = false;
                 spinner.classList.add('d-none');
