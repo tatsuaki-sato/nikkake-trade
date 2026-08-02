@@ -1,9 +1,12 @@
 import json
 import os
 import time
+import re
 from datetime import datetime
 import yfinance as yf
 import pandas as pd
+import requests
+from bs4 import BeautifulSoup
 from common.stock_names import get_company_name
 
 HISTORY_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "signal_history.json")
@@ -73,14 +76,40 @@ def record_signal(ticker: str, entry_price: float, target_price: float, stop_los
     history.append(signal_entry)
     save_history(history)
 
+def scrape_kabutan_price(code: str) -> float:
+    """
+    yfinanceブロック時のバックアップ：株探（Kabutan）から日本株最新株価をスクレイピング
+    """
+    try:
+        url = f"https://kabutan.jp/stock/?code={code}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        resp = requests.get(url, headers=headers, timeout=5)
+        if resp.status_code == 200:
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            price_span = soup.find('span', class_='kabuka')
+            if price_span:
+                price_str = price_span.text.replace(',', '').replace('円', '').strip()
+                return float(price_str)
+    except Exception as e:
+        print(f"Kabutan price scrape failed ({code}): {e}")
+    return None
+
 def fetch_stock_data_robust(tickers: list):
     """
-    クラウド環境（Render）でのレート制限回避型株価取得
+    クラウド環境（Render）でのレート制限・ブロック対策付き株価取得関数
     """
     if not tickers:
         return None
+        
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+    })
+    
     try:
-        data = yf.download(tickers, period="3mo", interval="1d", group_by="ticker", progress=False, threads=False)
+        data = yf.download(tickers, period="3mo", interval="1d", group_by="ticker", progress=False, threads=False, session=session)
         if data is not None and not data.empty:
             return data
     except Exception as e:
@@ -89,7 +118,7 @@ def fetch_stock_data_robust(tickers: list):
     result_dict = {}
     for t in tickers:
         try:
-            tk = yf.Ticker(t)
+            tk = yf.Ticker(t, session=session)
             df = tk.history(period="3mo", interval="1d")
             if df is not None and not df.empty:
                 result_dict[t] = df
@@ -127,73 +156,80 @@ def update_signal_performance():
 
         code = item.get("ticker_code", item.get("ticker", ""))
         symbol = code + ".T"
+        
         try:
             df = None
             if isinstance(data_store, dict):
                 df = data_store.get(symbol)
             elif data_store is not None:
-                df = data_store[symbol].dropna() if len(tickers) > 1 else data_store.dropna()
-
-            if df is None or df.empty:
-                continue
+                try:
+                    df = data_store[symbol].dropna() if len(tickers) > 1 else data_store.dropna()
+                except Exception:
+                    df = None
 
             entry_p = item["entry_price"]
             target_p = item["target_price"]
             stop_p = item["stop_loss_price"]
-            
-            # 推奨日(MM-DD)以降のデータのみを判定対象にする（過去日付への誤判定を完全防止！）
-            rec_date_str = item["date"].split()[0] # 例: "08-02"
-            current_year = datetime.now().year
-            try:
-                rec_dt = datetime.strptime(f"{current_year}-{rec_date_str}", "%Y-%m-%d")
-                df_after = df[df.index >= rec_dt]
-            except Exception:
-                df_after = df
-                
-            if df_after.empty:
-                df_after = df
 
-            high_price = float(df_after["High"].max())
-            low_price = float(df_after["Low"].min())
-            latest_close = float(df_after["Close"].iloc[-1])
-            
-            item["current_price"] = round(latest_close, 1)
-            item["max_price"] = round(max(item.get("max_price", entry_p), high_price), 1)
-            item["min_price"] = round(min(item.get("min_price", entry_p), low_price), 1)
-            item["return_pct"] = round(((latest_close - entry_p) / entry_p) * 100, 2)
-            item["pnl_yen"] = round((latest_close - entry_p) * 100, 0)
-            
-            trigger_closed_at = None
-            trigger_status = None
-            
-            # 推奨日以降の取引日を順番に走査して、最初に到達した「未来の本当の日付」を割り出す
-            for idx, row in df_after.iterrows():
-                r_high = float(row["High"])
-                r_low = float(row["Low"])
-                dt_obj = pd.to_datetime(idx)
-                dt_formatted = dt_obj.strftime("%m-%d 15:30")
+            if df is not None and not df.empty:
+                rec_date_str = item["date"].split()[0]
+                current_year = datetime.now().year
+                try:
+                    rec_dt = datetime.strptime(f"{current_year}-{rec_date_str}", "%Y-%m-%d")
+                    df_after = df[df.index >= rec_dt]
+                except Exception:
+                    df_after = df
+                    
+                if df_after.empty:
+                    df_after = df
+
+                high_price = float(df_after["High"].max())
+                low_price = float(df_after["Low"].min())
+                latest_close = float(df_after["Close"].iloc[-1])
                 
-                if r_low <= stop_p:
-                    trigger_status = "LOSS"
-                    trigger_closed_at = dt_formatted
-                    break
-                elif r_high >= target_p:
-                    trigger_status = "WIN"
-                    trigger_closed_at = dt_formatted
-                    break
-            
-            if trigger_status:
-                item["status"] = trigger_status
-                item["closed_at"] = trigger_closed_at if trigger_closed_at else now_time_str
-                if trigger_status == "LOSS":
-                    item["return_pct"] = round(((stop_p - entry_p) / entry_p) * 100, 2)
-                    item["pnl_yen"] = round((stop_p - entry_p) * 100, 0)
+                item["current_price"] = round(latest_close, 1)
+                item["max_price"] = round(max(item.get("max_price", entry_p), high_price), 1)
+                item["min_price"] = round(min(item.get("min_price", entry_p), low_price), 1)
+                item["return_pct"] = round(((latest_close - entry_p) / entry_p) * 100, 2)
+                item["pnl_yen"] = round((latest_close - entry_p) * 100, 0)
+                
+                trigger_closed_at = None
+                trigger_status = None
+                
+                for idx, row in df_after.iterrows():
+                    r_high = float(row["High"])
+                    r_low = float(row["Low"])
+                    dt_obj = pd.to_datetime(idx)
+                    dt_formatted = dt_obj.strftime("%m-%d 15:30")
+                    
+                    if r_low <= stop_p:
+                        trigger_status = "LOSS"
+                        trigger_closed_at = dt_formatted
+                        break
+                    elif r_high >= target_p:
+                        trigger_status = "WIN"
+                        trigger_closed_at = dt_formatted
+                        break
+                
+                if trigger_status:
+                    item["status"] = trigger_status
+                    item["closed_at"] = trigger_closed_at if trigger_closed_at else now_time_str
+                    if trigger_status == "LOSS":
+                        item["return_pct"] = round(((stop_p - entry_p) / entry_p) * 100, 2)
+                        item["pnl_yen"] = round((stop_p - entry_p) * 100, 0)
+                    else:
+                        item["return_pct"] = round(((target_p - entry_p) / entry_p) * 100, 2)
+                        item["pnl_yen"] = round((target_p - entry_p) * 100, 0)
                 else:
-                    item["return_pct"] = round(((target_p - entry_p) / entry_p) * 100, 2)
-                    item["pnl_yen"] = round((target_p - entry_p) * 100, 0)
+                    item["status"] = "OPEN"
+                    item["closed_at"] = "-"
             else:
-                item["status"] = "OPEN"
-                item["closed_at"] = "-"
+                # 株探バックアップフォールバック
+                scr_p = scrape_kabutan_price(code)
+                if scr_p:
+                    item["current_price"] = scr_p
+                    item["return_pct"] = round(((scr_p - entry_p) / entry_p) * 100, 2)
+                    item["pnl_yen"] = round((scr_p - entry_p) * 100, 0)
         except Exception:
             continue
 
@@ -207,13 +243,16 @@ def update_signal_performance():
             if isinstance(data_store, dict):
                 df = data_store.get(symbol)
             elif data_store is not None:
-                df = data_store[symbol].dropna() if len(tickers) > 1 else data_store.dropna()
+                try:
+                    df = data_store[symbol].dropna() if len(tickers) > 1 else data_store.dropna()
+                except Exception:
+                    df = None
 
+            buy_p = item.get("buy_price", 0)
+            shares = item.get("shares", 100)
+            
             if df is not None and not df.empty:
                 latest_close = float(df["Close"].iloc[-1])
-                buy_p = item.get("buy_price", 0)
-                shares = item.get("shares", 100)
-                
                 item["name"] = get_company_name(code)
                 item["current_price"] = round(latest_close, 1)
                 item["eval_amount"] = latest_close * shares
@@ -262,6 +301,13 @@ def update_signal_performance():
                 else:
                     item["status"] = "HOLD 保有中"
                     item["closed_at"] = "-"
+            else:
+                scr_p = scrape_kabutan_price(code)
+                if scr_p:
+                    item["current_price"] = scr_p
+                    item["eval_amount"] = scr_p * shares
+                    item["pnl_yen"] = round((scr_p - buy_p) * shares, 0)
+                    item["pnl_pct"] = round(((scr_p - buy_p) / buy_p) * 100, 2) if buy_p > 0 else 0.0
         except Exception:
             continue
 
