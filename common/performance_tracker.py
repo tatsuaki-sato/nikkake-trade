@@ -161,17 +161,27 @@ def update_signal_performance():
             stop_p = item["stop_loss_price"]
 
             if df is not None and not df.empty:
+                if getattr(df.index, 'tz', None) is not None:
+                    df.index = df.index.tz_localize(None)
+
                 rec_date_str = item["date"].split()[0] # "08-02"
                 current_year = datetime.now().year
                 try:
                     rec_dt = datetime.strptime(f"{current_year}-{rec_date_str}", "%Y-%m-%d")
-                    # 推奨日「当日以降」の株価データのみを抽出
+                    # 推奨日「当日以降」の株価データのみ抽出
                     df_after = df[df.index >= rec_dt]
-                except Exception:
-                    df_after = df
+                except Exception as ex:
+                    print(f"Date filter parse error: {ex}")
+                    df_after = pd.DataFrame()
                     
+                # 推奨日以降のデータがまだ存在しない場合（例: 休日のため未オープン）はOPEN監視中に強制固定
                 if df_after.empty:
-                    df_after = df
+                    item["status"] = "OPEN"
+                    item["closed_at"] = "-"
+                    item["return_pct"] = 0.0
+                    item["pnl_yen"] = 0.0
+                    item["current_price"] = entry_p
+                    continue
 
                 high_price = float(df_after["High"].max())
                 low_price = float(df_after["Low"].min())
@@ -186,7 +196,6 @@ def update_signal_performance():
                 trigger_closed_at = None
                 trigger_status = None
                 
-                # 推奨日以降のチャートを順番にスキャン
                 for idx, row in df_after.iterrows():
                     r_high = float(row["High"])
                     r_low = float(row["Low"])
@@ -202,7 +211,6 @@ def update_signal_performance():
                         trigger_closed_at = dt_formatted
                         break
                 
-                # 判定結果の更新（到達していない場合はOPENかつclosed_at='-'にリセット）
                 if trigger_status:
                     item["status"] = trigger_status
                     item["closed_at"] = trigger_closed_at if trigger_closed_at else now_time_str
@@ -221,10 +229,10 @@ def update_signal_performance():
                     item["current_price"] = scr_p
                     item["return_pct"] = round(((scr_p - entry_p) / entry_p) * 100, 2)
                     item["pnl_yen"] = round((scr_p - entry_p) * 100, 0)
-                # 株価取得不可の場合も過去の誤ったLOSS/WINを削除してリセット
                 item["status"] = "OPEN"
                 item["closed_at"] = "-"
-        except Exception:
+        except Exception as e:
+            print(f"Error updating item ({code}): {e}")
             item["status"] = "OPEN"
             item["closed_at"] = "-"
             continue
@@ -248,6 +256,9 @@ def update_signal_performance():
             shares = item.get("shares", 100)
             
             if df is not None and not df.empty:
+                if getattr(df.index, 'tz', None) is not None:
+                    df.index = df.index.tz_localize(None)
+
                 latest_close = float(df["Close"].iloc[-1])
                 item["name"] = get_company_name(code)
                 item["current_price"] = round(latest_close, 1)
@@ -269,9 +280,12 @@ def update_signal_performance():
                     rec_dt = datetime.strptime(f"{current_year}-{rec_date_str}", "%Y-%m-%d")
                     df_after = df[df.index >= rec_dt]
                 except Exception:
-                    df_after = df
+                    df_after = pd.DataFrame()
+                    
                 if df_after.empty:
-                    df_after = df
+                    item["status"] = "HOLD 保有中"
+                    item["closed_at"] = "-"
+                    continue
                 
                 trigger_closed_at = None
                 trigger_status = None
