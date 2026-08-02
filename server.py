@@ -1,7 +1,9 @@
 import os
 import json
+import base64
 import uvicorn
 import threading
+import requests as http_requests
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -12,9 +14,42 @@ from typing import Optional
 from common.performance_tracker import (
     load_history, save_history, 
     load_real_portfolio, save_real_portfolio, 
-    update_signal_performance, generate_html_dashboard
+    update_signal_performance, generate_html_dashboard,
+    HISTORY_FILE, REAL_PORTFOLIO_FILE
 )
 from common.stock_names import get_company_name
+
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+GITHUB_REPO = os.environ.get("GITHUB_REPO", "tatsuaki-sato/nikkake-trade")
+
+def github_commit_data(file_path: str, message: str):
+    """
+    データファイルをGitHub APIで自動コミット → Renderコンテナ再起動後もデータ永続化
+    環境変数 GITHUB_TOKEN が設定されている場合のみ動作
+    """
+    if not GITHUB_TOKEN:
+        return
+    try:
+        rel_path = os.path.relpath(file_path, os.path.dirname(os.path.abspath(__file__)))
+        rel_path = rel_path.replace("\\", "/")
+        api_url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{rel_path}"
+        headers = {
+            "Authorization": f"token {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+        # 現在のSHAを取得（更新に必要）
+        get_resp = http_requests.get(api_url, headers=headers, timeout=5)
+        sha = get_resp.json().get("sha", "") if get_resp.status_code == 200 else ""
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = base64.b64encode(f.read().encode("utf-8")).decode("utf-8")
+
+        payload = {"message": message, "content": content, "sha": sha} if sha else {"message": message, "content": content}
+        http_requests.put(api_url, headers=headers, json=payload, timeout=10)
+        print(f"[GitHub] Auto-committed: {rel_path}")
+    except Exception as e:
+        print(f"[GitHub] Commit skipped: {e}")
+
 
 app = FastAPI(title="nikkake-trade - AI Signal & Real Portfolio Web App")
 
@@ -105,7 +140,7 @@ def add_api_history(signal: AISignalInput, background_tasks: BackgroundTasks):
     }
     history.append(new_item)
     save_history(history)
-    
+    threading.Thread(target=github_commit_data, args=(HISTORY_FILE, f"[auto] Add signal {code}"), daemon=True).start()
     background_tasks.add_task(update_signal_performance, True)
     return {"status": "success", "added": new_item}
 
@@ -125,6 +160,7 @@ def delete_api_history(signal_id: str):
             pass
             
     save_history(new_history)
+    threading.Thread(target=github_commit_data, args=(HISTORY_FILE, f"[auto] Delete signal {signal_id}"), daemon=True).start()
     real_portfolio = load_real_portfolio()
     generate_html_dashboard(new_history, real_portfolio)
     return {"status": "success", "message": f"Signal {signal_id} deleted", "remaining": len(new_history)}
@@ -160,16 +196,12 @@ def add_api_portfolio(stock: RealStockInput, background_tasks: BackgroundTasks):
         "stop_loss_price": round(stock.buy_price * 0.96, 1),
         "status": "HOLD 保有中",
         "closed_at": "-",
-        "details": {
-            "PER": "15.0倍",
-            "PBR": "1.1倍",
-            "ATR": f"±{round(stock.buy_price * 0.02)}円"
-        },
+        "details": {},
         "note": "画面からFastAPI経由で直接追加"
     }
     portfolio.append(new_item)
     save_real_portfolio(portfolio)
-    
+    threading.Thread(target=github_commit_data, args=(REAL_PORTFOLIO_FILE, f"[auto] Add portfolio {code}"), daemon=True).start()
     background_tasks.add_task(update_signal_performance, True)
     return {"status": "success", "added": new_item}
 
@@ -190,6 +222,9 @@ def delete_api_portfolio(index_or_id: str):
             pass
             
     save_real_portfolio(new_portfolio)
+    threading.Thread(target=github_commit_data, args=(REAL_PORTFOLIO_FILE, f"[auto] Delete portfolio {index_or_id}"), daemon=True).start()
+    history = load_history()
+    generate_html_dashboard(history, new_portfolio)
     return {"status": "success", "message": f"Portfolio item {index_or_id} deleted"}
 
 @app.post("/api/refresh")
