@@ -16,17 +16,17 @@ TARGET_TICKERS = [
 ]
 BENCHMARK_TICKER = "1321.T"
 
-def get_cached_financial_perks(ticker: str) -> dict:
+def get_cached_financial_perks(ticker: str, close_price: float) -> dict:
     cache_key = f"perks_{ticker}"
     cached = get_cached_item(cache_key, ttl_seconds=604800)
     if cached:
         return cached
-    data = get_stock_financial_perks(ticker)
+    data = get_stock_financial_perks(ticker, close_price)
     set_cached_item(cache_key, data)
     return data
 
 def run_predictor():
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] グローバル・クオンツ未来予測モジュール起動...")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 売買判断ダッシュボード付き未来予測起動...")
     
     tickers_to_fetch = TARGET_TICKERS + [BENCHMARK_TICKER]
     try:
@@ -44,7 +44,10 @@ def run_predictor():
             if len(stock_df) < 50:
                 continue
 
-            sentiment = get_x_sentiment_score(ticker.replace('.T', ''))
+            close_price = float(stock_df.iloc[-1]['Close'])
+            stock_name = ticker.replace('.T', '')
+            sentiment = get_x_sentiment_score(stock_name)
+            
             quant_result = evaluate_quant_factors(stock_df, market_df, ticker, sentiment)
             score = quant_result['total_score']
             
@@ -54,15 +57,24 @@ def run_predictor():
             
             if score >= 60 and is_quant_prediction:
                 news = get_kabutan_news(ticker)
-                financial_perks = get_cached_financial_perks(ticker)
+                perks = get_cached_financial_perks(ticker, close_price)
+                trade_plan = quant_result.get('trade_plan', {})
+                
                 hit_list.append({
-                    "銘柄コード": ticker.replace('.T', ''),
-                    "終値": stock_df.iloc[-1]['Close'],
+                    "銘柄コード": stock_name,
+                    "終値": close_price,
                     "スコア": score,
                     "詳細": quant_result['details'],
                     "ニュース": news,
-                    "配当利回り": financial_perks.get('dividend_yield', 'データなし'),
-                    "株主優待": financial_perks.get('yutai_info', 'なし')
+                    "最低購入金額": perks.get('min_investment', '要確認'),
+                    "配当利回り": perks.get('dividend_yield', 'データなし'),
+                    "株主優待": perks.get('yutai_info', 'なし'),
+                    "PER": perks.get('per', 'データなし'),
+                    "PBR": perks.get('pbr', 'データなし'),
+                    "ボラティリティ": trade_plan.get('volatility', '要確認'),
+                    "損切りライン": trade_plan.get('stop_loss', '要確認'),
+                    "目標価格": trade_plan.get('target_price', '要確認'),
+                    "リスクリワード": trade_plan.get('risk_reward_ratio', '1 : 1.5')
                 })
         except Exception as e:
             print(f"予測分析エラー ({ticker}): {e}")
@@ -70,31 +82,36 @@ def run_predictor():
 
     notify_text = ""
     if len(hit_list) > 0:
-        notify_text += f"🔮 **【グローバル・クオンツ未来予測】ブレイクアウト・EDINET開示銘柄**\n\n"
+        notify_text += f"🔮 **【クオンツ未来予測 ＆ 売買判断ダッシュボード】**\n\n"
         hit_list.sort(key=lambda x: x['スコア'], reverse=True)
+        
         for hit in hit_list:
             tv_link = f"https://jp.tradingview.com/chart/?symbol=TSE%3A{hit['銘柄コード']}"
             notify_text += f"🚀 **{hit['銘柄コード']}** (クオンツスコア: **{hit['スコア']}点**)\n"
             notify_text += f"・チャート: {tv_link}\n"
+            notify_text += f"・💵 **最低購入金額**: {hit['最低購入金額']} (終値 {hit['終値']:.1f}円)\n"
             notify_text += f"・💰 **配当利回り**: {hit['配当利回り']} / 🎁 **株主優待**: {hit['株主優待']}\n"
-            notify_text += f"・**【数理＆マクロシグナル要因】**\n"
+            notify_text += f"・⚖️ **割安度**: PER {hit['PER']} / PBR {hit['PBR']}\n"
+            notify_text += f"・📉 **ボラティリティ**: {hit['ボラティリティ']}\n"
+            notify_text += f"・🛑 **推奨損切りライン**: {hit['損切りライン']}\n"
+            notify_text += f"・🎯 **目標価格 (利確)**: {hit['目標価格']} (RR比 {hit['リスクリワード']})\n"
+            
+            notify_text += f"・**【数理＆マクロ根拠】**\n"
             for k, v in hit['詳細'].items():
                 if "[0点]" not in v:
                     notify_text += f"  - {v}\n"
-            
-            if hit['ニュース']:
-                notify_text += f"・適時ニュース: {hit['ニュース'][0]}\n"
             notify_text += "\n"
+            
         notify(notify_text)
     else:
         theme_details = get_market_trending_themes()
-        notify_text = "🔮 **【グローバル・クオンツ未来予測】本日の市場トレンド＆関連銘柄**\n"
+        notify_text = "🔮 **【クオンツ未来予測 ＆ トレンドテーマ】**\n"
         notify_text += "本日ブレイクアウト条件を満たす特定銘柄は検出されませんでしたが、現在市場で最も関心を集めている注目テーマと代表的な関連株は以下の通りです：\n\n"
         notify_text += "🌟 **【市場注目テーマ TOP 5 ＆ 関連代表株】**\n"
         for i, item in enumerate(theme_details[:5], 1):
             stocks_str = ", ".join(item['stocks'])
             notify_text += f"{i}. **{item['theme']}**\n   └ 関連代表銘柄: {stocks_str}\n"
-        notify_text += "\n※米国マクロ環境・EDINET開示を全自動で継続監視しています。"
+        notify_text += "\n※全自動で損切りライン・目標価格を計算しモニタリングしています。"
         
         notify(notify_text)
 

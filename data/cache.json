@@ -50,5 +50,33 @@
       "has_5percent_report": false,
       "details": ""
     }
+  },
+  "edinet_6758": {
+    "timestamp": 1785675059.8652658,
+    "value": {
+      "has_5percent_report": false,
+      "details": ""
+    }
+  },
+  "edinet_9432": {
+    "timestamp": 1785675060.64434,
+    "value": {
+      "has_5percent_report": false,
+      "details": ""
+    }
+  },
+  "edinet_8306": {
+    "timestamp": 1785675061.650217,
+    "value": {
+      "has_5percent_report": false,
+      "details": ""
+    }
+  },
+  "edinet_4063": {
+    "timestamp": 1785675063.0072262,
+    "value": {
+      "has_5percent_report": false,
+      "details": ""
+    }
   }
 }

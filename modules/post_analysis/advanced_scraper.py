@@ -28,7 +28,7 @@ def get_x_sentiment_score(keyword: str) -> int:
 
 def get_kabutan_news(ticker: str) -> list:
     """
-    株探（Kabutan）から、指定銘柄の最新ニュースをスクレイピング
+    株探（Kabutan）から最新ニュースを取得
     """
     url = f"https://kabutan.jp/stock/news?code={ticker.replace('.T', '')}"
     headers = {
@@ -50,34 +50,38 @@ def get_kabutan_news(ticker: str) -> list:
         print(f"株探ニュース取得エラー: {e}")
         return []
 
-def get_stock_financial_perks(ticker: str) -> dict:
+def get_stock_financial_perks(ticker: str, close_price: float = 0.0) -> dict:
     """
-    銘柄の配当利回り（%）および株主優待情報を取得
+    売買判断7大メトリクス（最低購入金額、配当、優待、PER、PBR）を取得
     """
     symbol = ticker.replace('.T', '')
     res = {
+        "min_investment": f"{int(close_price * 100):,}円" if close_price > 0 else "要確認",
         "dividend_yield": "データなし",
-        "yutai_info": "なし"
+        "yutai_info": "なし",
+        "per": "データなし",
+        "pbr": "データなし"
     }
     
-    # 1. 配当利回りを yfinance または Yahooファイナンスから取得
     try:
         t = yf.Ticker(ticker)
-        dy = t.info.get('dividendYield', None)
+        info = t.info
+        
+        dy = info.get('dividendYield', None)
         if dy is not None:
             res['dividend_yield'] = f"{dy * 100:.2f}%"
-        else:
-            # 代替: Yahooファイナンス Japan
-            yf_url = f"https://finance.yahoo.co.jp/quote/{symbol}.T"
-            headers = {'User-Agent': 'Mozilla/5.0'}
-            resp = requests.get(yf_url, headers=headers, timeout=4)
-            if "配当利回り" in resp.text:
-                # 簡易抽出
-                res['dividend_yield'] = "予想あり"
+            
+        per = info.get('trailingPE', info.get('forwardPE', None))
+        if per is not None:
+            res['per'] = f"{per:.1f}倍"
+            
+        pbr = info.get('priceToBook', None)
+        if pbr is not None:
+            res['pbr'] = f"{pbr:.2f}倍"
     except Exception:
         pass
         
-    # 2. 株主優待情報（株探）
+    # 株主優待情報（株探）
     try:
         url = f"https://kabutan.jp/stock/yutai?code={symbol}"
         headers = {'User-Agent': 'Mozilla/5.0'}
@@ -87,9 +91,9 @@ def get_stock_financial_perks(ticker: str) -> dict:
         yutai_box = soup.find('div', class_='yutai_content') or soup.find('table', class_='fin_year_table')
         if yutai_box:
             text = yutai_box.text.strip().replace('\n', ' ')
-            res['yutai_info'] = text[:60] + "..." if len(text) > 60 else text
+            res['yutai_info'] = text[:50] + "..." if len(text) > 50 else text
         elif "優待" in resp.text:
-            res['yutai_info'] = "株主優待制度あり (詳細は株探参照)"
+            res['yutai_info'] = "株主優待制度あり"
     except Exception:
         pass
 
@@ -97,7 +101,7 @@ def get_stock_financial_perks(ticker: str) -> dict:
 
 def get_market_trending_themes() -> list:
     """
-    株探の人気テーマランキングと、各テーマの関連代表銘柄（コード・銘柄名）を取得
+    株探の人気テーマランキングと、各テーマの関連代表銘柄を取得
     """
     url = "https://kabutan.jp/theme/"
     headers = {
@@ -111,14 +115,13 @@ def get_market_trending_themes() -> list:
         theme_table = soup.find('table', class_='market_table')
         if theme_table:
             rows = theme_table.find_all('tr')
-            for row in rows[1:6]: # 上位5テーマ
+            for row in rows[1:6]:
                 cols = row.find_all('td')
                 if len(cols) >= 2:
                     theme_name = cols[1].text.strip()
                     theme_link = cols[1].find('a')['href'] if cols[1].find('a') else None
                     
                     related_stocks = []
-                    # テーマ詳細ページから関連銘柄を取得
                     if theme_link:
                         try:
                             t_url = "https://kabutan.jp" + theme_link if not theme_link.startswith('http') else theme_link
@@ -127,7 +130,7 @@ def get_market_trending_themes() -> list:
                             stk_table = t_soup.find('table', class_='market_table')
                             if stk_table:
                                 s_rows = stk_table.find_all('tr')
-                                for s_row in s_rows[1:4]: # 上位3関連銘柄
+                                for s_row in s_rows[1:4]:
                                     a_tags = s_row.find_all('a')
                                     if len(a_tags) >= 2:
                                         code = a_tags[0].text.strip()
@@ -156,8 +159,3 @@ def get_market_trending_themes() -> list:
         ]
         
     return theme_details
-
-if __name__ == "__main__":
-    print("X Sentiment (トヨタ):", get_x_sentiment_score("トヨタ"))
-    print("Financial Perks (7203.T):", get_stock_financial_perks("7203.T"))
-    print("Market Trending Themes with Stocks:", get_market_trending_themes())
