@@ -6,7 +6,7 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from common.notifier import notify
-from modules.post_analysis.advanced_scraper import get_x_sentiment_score, get_kabutan_news
+from modules.post_analysis.advanced_scraper import get_x_sentiment_score, get_kabutan_news, get_market_trending_themes
 from modules.post_analysis.quant_analyzer import evaluate_quant_factors
 
 TARGET_TICKERS = [
@@ -38,7 +38,6 @@ def run_predictor():
             quant_result = evaluate_quant_factors(stock_df, market_df, ticker, sentiment)
             score = quant_result['total_score']
             
-            # ボラティリティスクイーズ発火（Squeeze Fired）または残差モメンタム高数値を予測条件とする
             is_quant_prediction = "ボラティリティ・スクイーズ解除" in quant_result['details'].get('Volatility_Squeeze', '') or \
                                   "固有モメンタム極めて強力" in quant_result['details'].get('Residual_Momentum', '')
             
@@ -73,7 +72,15 @@ def run_predictor():
             notify_text += "\n"
         notify(notify_text)
     else:
-        notify_text = "🔮 **【クオンツ未来予測】**\n本日、スクイーズブレイクアウト条件を満たす定量的ブレイク銘柄はありませんでした。"
+        # ヒット銘柄がない場合のトレンドテーマ情報補完
+        trending_themes = get_market_trending_themes()
+        notify_text = "🔮 **【クオンツ未来予測】本日の市場トレンド＆人気テーマ情報**\n"
+        notify_text += "本日ブレイクアウト条件を満たす特定銘柄は検出されませんでしたが、現在市場で最も関心を集めている注目のホットテーマは以下の通りです：\n\n"
+        notify_text += "🌟 **【市場注目テーマ TOP 5】**\n"
+        for i, theme in enumerate(trending_themes[:5], 1):
+            notify_text += f"{i}. **{theme}**\n"
+        notify_text += "\n※テーマ関連銘柄の資金流入とブレイクアウト兆候を引き続き全自動で監視します。"
+        
         notify(notify_text)
 
 if __name__ == "__main__":

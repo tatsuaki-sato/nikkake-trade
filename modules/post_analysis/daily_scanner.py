@@ -6,14 +6,14 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from common.notifier import notify
-from modules.post_analysis.advanced_scraper import get_x_sentiment_score, get_kabutan_news
+from modules.post_analysis.advanced_scraper import get_x_sentiment_score, get_kabutan_news, get_market_trending_themes
 from modules.post_analysis.quant_analyzer import evaluate_quant_factors
 
 TARGET_TICKERS = [
     "7203.T", "9984.T", "6920.T", "8035.T", "6861.T", 
     "7974.T", "6758.T", "9432.T", "8306.T", "4063.T"
 ]
-BENCHMARK_TICKER = "1321.T" # 日経225連動型上場投資信託
+BENCHMARK_TICKER = "1321.T"
 
 def run_daily_scanner():
     """
@@ -28,9 +28,7 @@ def run_daily_scanner():
         print(f"データ取得エラー: {e}")
         return
 
-    # ベンチマーク（市場全体）のデータ
     market_df = data[BENCHMARK_TICKER].copy().dropna()
-
     hit_list = []
     
     for ticker in TARGET_TICKERS:
@@ -39,15 +37,12 @@ def run_daily_scanner():
             if len(stock_df) < 50:
                 continue
 
-            # 1. X センチメント
             stock_name = ticker.replace('.T', '')
             sentiment = get_x_sentiment_score(stock_name)
             
-            # 2. クオンツ5ファクター評価
             quant_result = evaluate_quant_factors(stock_df, market_df, ticker, sentiment)
             score = quant_result['total_score']
             
-            # 70点以上の高クオンツ評価銘柄のみ
             if score >= 70: 
                 news = get_kabutan_news(ticker)
                 hit_list.append({
@@ -88,7 +83,15 @@ def run_daily_scanner():
         notify(notify_text)
             
     else:
-        notify_text = "🏛️ **【クオンツ事後分析】本日の総合レポート**\n学術モデルにおける70点以上の高ファクター条件を満たす銘柄は本日検出されませんでした。"
+        # ヒット銘柄がない場合は市場のトレンド・注目テーマを自動収集して送信
+        trending_themes = get_market_trending_themes()
+        notify_text = "🏛️ **【クオンツ事後分析】本日の市況＆トレンドテーマ情報**\n"
+        notify_text += "本日は70点以上の高ファクター条件を満たす特定銘柄は検出されませんでしたが、現在市場で話題・トレンドとなっている注目テーマは以下の通りです：\n\n"
+        notify_text += "🔥 **【現在市場で注目の熱狂テーマ TOP 5】**\n"
+        for i, theme in enumerate(trending_themes[:5], 1):
+            notify_text += f"{i}. **{theme}**\n"
+        notify_text += "\n※市場テーマに関連する銘柄の押し目・スクイーズ形成を継続監視しています。"
+        
         notify(notify_text)
 
 if __name__ == "__main__":
