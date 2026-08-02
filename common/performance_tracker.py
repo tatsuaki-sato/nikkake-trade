@@ -146,6 +146,17 @@ def update_signal_performance():
         code = item.get("ticker_code", item.get("ticker", ""))
         symbol = code + ".T"
         
+        # 強制クリーンアップ: closed_atが推定期日より過去であれば強制初期化
+        rec_date_str = item.get("date", "08-02").split()[0]
+        closed_at_str = item.get("closed_at", "-")
+        if closed_at_str != "-" and " " in closed_at_str:
+            c_date_part = closed_at_str.split()[0]
+            if c_date_part < rec_date_str:
+                item["status"] = "OPEN"
+                item["closed_at"] = "-"
+                item["return_pct"] = 0.0
+                item["pnl_yen"] = 0.0
+        
         try:
             df = None
             if isinstance(data_store, dict):
@@ -164,7 +175,6 @@ def update_signal_performance():
                 if getattr(df.index, 'tz', None) is not None:
                     df.index = df.index.tz_localize(None)
 
-                rec_date_str = item["date"].split()[0]
                 current_year = datetime.now().year
                 try:
                     rec_dt = datetime.strptime(f"{current_year}-{rec_date_str}", "%Y-%m-%d")
@@ -240,6 +250,17 @@ def update_signal_performance():
     for item in real_portfolio:
         code = item.get("ticker", "")
         symbol = code + ".T"
+        
+        rec_date_str = item.get("buy_date", "08-02").split()[0]
+        closed_at_str = item.get("closed_at", "-")
+        if closed_at_str != "-" and " " in closed_at_str:
+            c_date_part = closed_at_str.split()[0]
+            if c_date_part < rec_date_str:
+                item["status"] = "HOLD 保有中"
+                item["closed_at"] = "-"
+                item["pnl_pct"] = 0.0
+                item["pnl_yen"] = 0.0
+                
         try:
             df = None
             if isinstance(data_store, dict):
@@ -272,7 +293,6 @@ def update_signal_performance():
                 target_p = item["target_price"]
                 stop_p = item["stop_loss_price"]
                 
-                rec_date_str = item.get("buy_date", "").split()[0]
                 current_year = datetime.now().year
                 try:
                     rec_dt = datetime.strptime(f"{current_year}-{rec_date_str}", "%Y-%m-%d")
@@ -900,7 +920,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
         async function deleteRealStock(itemId) {{
             if (confirm('この購入銘柄を削除しますか？')) {{
                 try {{
-                    const res = await fetch('/api/portfolio/' + itemId, {{ method: 'DELETE' }});
+                    const res = await fetch('/api/portfolio/' + index_or_id, {{ method: 'DELETE' }});
                     if (res.ok) {{
                         renderRealPortfolio();
                         return;
