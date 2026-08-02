@@ -41,19 +41,21 @@ def save_real_portfolio(portfolio: list):
 
 def record_signal(ticker: str, entry_price: float, target_price: float, stop_loss_price: float, score: int, details: dict):
     history = load_history()
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+    today_date = datetime.now().strftime("%Y-%m-%d")
     code = ticker.replace('.T', '').strip()
     
+    # 同一日の同一時間帯重複防止
     for item in history:
-        if item.get("ticker_code") == code and item.get("date") == today_str:
+        if item.get("ticker_code") == code and item.get("date", "").startswith(today_date):
             return
             
     name = get_company_name(code)
     sim_amount = entry_price * 100
     
     signal_entry = {
-        "id": f"{code}_{today_str}",
-        "date": today_str,
+        "id": f"{code}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+        "date": now_str, # 日時（時間まで明記）
         "ticker_code": code,
         "name": name,
         "entry_price": entry_price,
@@ -62,6 +64,7 @@ def record_signal(ticker: str, entry_price: float, target_price: float, stop_los
         "stop_loss_price": stop_loss_price,
         "score": score,
         "status": "OPEN",
+        "closed_at": "-", # 利確・損切り決定日時
         "current_price": entry_price,
         "max_price": entry_price,
         "min_price": entry_price,
@@ -87,11 +90,13 @@ def update_signal_performance():
         return
 
     try:
-        data = yf.download(tickers, period="1mo", group_by="ticker", progress=False)
+        data = yf.download(tickers, period="1mo", interval="1d", group_by="ticker", progress=False)
     except Exception as e:
         print(f"株追跡データ取得エラー: {e}")
         generate_html_dashboard(history, real_portfolio)
         return
+
+    now_time_str = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     for item in history:
         if item.get("status") != "OPEN":
@@ -108,8 +113,8 @@ def update_signal_performance():
             target_p = item["target_price"]
             stop_p = item["stop_loss_price"]
             
-            signal_date = item["date"]
-            df_after = df[df.index >= signal_date]
+            signal_date_str = item["date"].split()[0]
+            df_after = df[df.index >= signal_date_str]
             if df_after.empty:
                 df_after = df
                 
@@ -122,14 +127,16 @@ def update_signal_performance():
             item["min_price"] = min(item.get("min_price", entry_p), low_price)
             item["return_pct"] = round(((latest_close - entry_p) / entry_p) * 100, 2)
             
-            if high_price >= target_p:
-                item["status"] = "WIN"
-                item["return_pct"] = round(((target_p - entry_p) / entry_p) * 100, 2)
-                item["close_date"] = datetime.now().strftime("%Y-%m-%d")
-            elif low_price <= stop_p:
+            # 同日内に両方到達する等、高ボラティリティ時の優先度ロジック
+            # リスク管理の原則：同日高安両方到達時は資金保護のため保守的に「損切り」を最優先判定
+            if low_price <= stop_p:
                 item["status"] = "LOSS"
                 item["return_pct"] = round(((stop_p - entry_p) / entry_p) * 100, 2)
-                item["close_date"] = datetime.now().strftime("%Y-%m-%d")
+                item["closed_at"] = now_time_str
+            elif high_price >= target_p:
+                item["status"] = "WIN"
+                item["return_pct"] = round(((target_p - entry_p) / entry_p) * 100, 2)
+                item["closed_at"] = now_time_str
         except Exception:
             continue
 
@@ -185,22 +192,25 @@ def generate_weekly_report() -> str:
         ret = item.get("return_pct", 0)
         entry = item.get("entry_price")
         sim_a = entry * 100
+        dt_str = item.get("date", "")
+        closed_str = item.get("closed_at", "-")
         
         if st == "WIN":
-            text += f"・🎯 **{name}** (推奨: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円) ➔ **利確達成 🎉 ({ret:+.1f}%)**\n"
+            text += f"・🎯 **{name}** (買付日時: {dt_str} / 株価: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円) ➔ **利確達成 🎉 ({closed_str} / {ret:+.1f}%)**\n"
         elif st == "LOSS":
-            text += f"・🛑 **{name}** (推奨: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円) ➔ **損切り撤退 🛑 ({ret:+.1f}%)**\n"
+            text += f"・🛑 **{name}** (買付日時: {dt_str} / 株価: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円) ➔ **損切り撤退 🛑 ({closed_str} / {ret:+.1f}%)**\n"
         else:
-            text += f"・👀 **{name}** (推奨: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円 / {ret:+.1f}% 監視中)\n"
+            text += f"・👀 **{name}** (買付日時: {dt_str} / 株価: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円 / {ret:+.1f}% 監視中)\n"
             
     if real_portfolio:
         text += "\n💼 **【My リアル購入ポートフォリオ実効損益】**\n"
         for item in real_portfolio:
             pnl_y = item.get("pnl_yen", 0)
             pnl_p = item.get("pnl_pct", 0)
-            text += f"・💵 **{item.get('name')}**: 買付 {item.get('buy_price'):,.1f}円({item.get('shares')}株) ➔ 損益 **{pnl_y:+,.0f}円 ({pnl_p:+.1f}%)**\n"
+            b_dt = item.get("buy_date", "")
+            text += f"・💵 **{item.get('name')}**: 買付日時 {b_dt} ({item.get('buy_price'):,.1f}円 / {item.get('shares')}株) ➔ 損益 **{pnl_y:+,.0f}円 ({pnl_p:+.1f}%)**\n"
     else:
-        text += "\n💼 **【My リアル購入ポートフォリオ】**\n現在、実際の購入保有銘柄はありません（画面から追加可能）。\n"
+        text += "\n💼 **【My リアル購入ポートフォリオ】**\n現在、実際の購入保有銘柄はありません。\n"
 
     text += "\n※ルール通り売買した場合の完全実測検証およびリアル保有損益です。"
     return text
@@ -275,23 +285,23 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 <div class="card bg-white p-4 card-stat">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="card-title mb-0">📋 AI推奨シグナル実測追跡リスト</h5>
-                        <small class="text-muted">不要なシミュレーションシグナルは右端の「削除」ボタンで消去可能</small>
+                        <small class="text-muted">買付日時〜利確/損切り決着日時まで完全実測追跡</small>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th>推奨日</th>
+                                    <th>推奨日時</th>
                                     <th>企業名 (コード)</th>
                                     <th>スコア</th>
                                     <th>推奨株価</th>
-                                    <th>100株シミュレーション</th>
+                                    <th>100株購入額</th>
                                     <th>目標利確</th>
                                     <th>損切り</th>
                                     <th>最新/最終株価</th>
                                     <th>リターン</th>
                                     <th>ステータス</th>
-                                    <th>操作</th>
+                                    <th>決着日時</th>
                                 </tr>
                             </thead>
                             <tbody id="aiTableBody">
@@ -307,7 +317,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h4>💼 実際に購入した銘柄リスト</h4>
                     <div>
-                        <button class="btn btn-outline-secondary me-2" onclick="copyPortfolioJSON()">📋 登録データをAIへ同期用にコピー</button>
+                        <button class="btn btn-outline-secondary me-2" onclick="copyPortfolioJSON()">📋 登録データをコピー</button>
                         <button class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#addStockModal">
                             ➕ 画面から購入銘柄を即時追加
                         </button>
@@ -336,7 +346,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th>購入日</th>
+                                    <th>購入日時</th>
                                     <th>銘柄コード/企業名</th>
                                     <th>買付単価</th>
                                     <th>保有株数</th>
@@ -383,8 +393,8 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                             <input type="number" class="form-control" id="inputShares" value="100" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">購入日</label>
-                            <input type="date" class="form-control" id="inputBuyDate" required>
+                            <label class="form-label">購入日時</label>
+                            <input type="datetime-local" class="form-control" id="inputBuyDate" required>
                         </div>
                     </form>
                 </div>
@@ -446,8 +456,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 return;
             }}
 
-            history.slice().reverse().forEach((item, revIndex) => {{
-                const originalIndex = history.length - 1 - revIndex;
+            history.slice().reverse().forEach((item) => {{
                 const st = item.status;
                 const entryP = parseFloat(item.entry_price || 0);
                 const targetP = parseFloat(item.target_price || 0);
@@ -455,6 +464,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 const currP = parseFloat(item.current_price || entryP);
                 const retP = parseFloat(item.return_pct || 0);
                 const simAmt = entryP * 100;
+                const closedAt = item.closed_at || '-';
                 
                 if (st === 'WIN') {{ wins++; totalClosed++; totalReturn += retP; }}
                 else if (st === 'LOSS') {{ losses++; totalClosed++; totalReturn += retP; }}
@@ -468,7 +478,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 
                 tbody.innerHTML += `
                     <tr>
-                        <td>${{item.date || '-'}}</td>
+                        <td><small>${{item.date || '-'}}</small></td>
                         <td><strong>${{item.name || item.ticker_code || item.ticker}}</strong></td>
                         <td><span class="badge bg-secondary">${{item.score || 60}}点</span></td>
                         <td>${{entryP.toLocaleString()}}円</td>
@@ -478,7 +488,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                         <td>${{currP.toLocaleString()}}円</td>
                         <td class="${{retCls}}"><strong>${{retSign}}${{retP.toFixed(2)}}%</strong></td>
                         <td>${{badge}}</td>
-                        <td><button class="btn btn-sm btn-outline-danger" onclick="deleteAISignal(${{originalIndex}})">削除</button></td>
+                        <td><small class="text-muted">${{closedAt}}</small></td>
                     </tr>
                 `;
             }});
@@ -494,14 +504,6 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 
             document.getElementById('aiTotalCountText').innerText = history.length + '件';
             document.getElementById('aiOpenCountText').innerText = '監視中: ' + (history.length - totalClosed) + '件';
-        }}
-
-        function deleteAISignal(index) {{
-            if (confirm('この実測シグナルを消去しますか？')) {{
-                const history = getLocalHistory();
-                history.splice(index, 1);
-                saveLocalHistory(history);
-            }}
         }}
 
         function renderRealPortfolio() {{
@@ -535,7 +537,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 
                 tbody.innerHTML += `
                     <tr>
-                        <td>${{item.buy_date || '-'}}</td>
+                        <td><small>${{item.buy_date || '-'}}</small></td>
                         <td><strong>${{item.name || item.ticker}}</strong></td>
                         <td>${{buyP.toLocaleString()}}円</td>
                         <td>${{shares.toLocaleString()}}株</td>
@@ -559,7 +561,8 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             let name = document.getElementById('inputName').value.trim();
             const buyPrice = parseFloat(document.getElementById('inputBuyPrice').value);
             const shares = parseInt(document.getElementById('inputShares').value);
-            const buyDate = document.getElementById('inputBuyDate').value;
+            const buyDateRaw = document.getElementById('inputBuyDate').value;
+            const buyDate = buyDateRaw.replace('T', ' ');
 
             if (!ticker || isNaN(buyPrice) || isNaN(shares) || !buyDate) {{
                 alert('すべての必須項目を正しく入力してください。');
@@ -604,14 +607,16 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             const portfolio = getLocalPortfolio();
             const str = JSON.stringify(portfolio, null, 2);
             navigator.clipboard.writeText(str).then(() => {{
-                alert('現在画面で追加・編集したポートフォリオのJSONコードをクリップボードにコピーしました！AIへの連絡やサーバー同期にご利用いただけます。');
+                alert('現在画面で追加・編集したポートフォリオのJSONコードをコピーしました！');
             }}).catch(err => {{
                 prompt('以下をコピーしてください:', str);
             }});
         }}
 
         document.addEventListener('DOMContentLoaded', () => {{
-            document.getElementById('inputBuyDate').valueAsDate = new Date();
+            const now = new Date();
+            const nowISO = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0,16);
+            document.getElementById('inputBuyDate').value = nowISO;
             renderAIHistory();
             renderRealPortfolio();
         }});

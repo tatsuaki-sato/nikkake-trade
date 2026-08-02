@@ -16,7 +16,7 @@
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>🤖 trade - AI Signal & Real Portfolio Dashboard</h2>
-            <span class="badge bg-primary fs-6">更新: 2026-08-02 23:16</span>
+            <span class="badge bg-primary fs-6">更新: 2026-08-02 23:30</span>
         </div>
 
         <ul class="nav nav-tabs mb-4 fs-5" id="myTab" role="tablist">
@@ -58,23 +58,23 @@
                 <div class="card bg-white p-4 card-stat">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="card-title mb-0">📋 AI推奨シグナル実測追跡リスト</h5>
-                        <small class="text-muted">不要なシミュレーションシグナルは右端の「削除」ボタンで消去可能</small>
+                        <small class="text-muted">買付日時〜利確/損切り決着日時まで完全実測追跡</small>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th>推奨日</th>
+                                    <th>推奨日時</th>
                                     <th>企業名 (コード)</th>
                                     <th>スコア</th>
                                     <th>推奨株価</th>
-                                    <th>100株シミュレーション</th>
+                                    <th>100株購入額</th>
                                     <th>目標利確</th>
                                     <th>損切り</th>
                                     <th>最新/最終株価</th>
                                     <th>リターン</th>
                                     <th>ステータス</th>
-                                    <th>操作</th>
+                                    <th>決着日時</th>
                                 </tr>
                             </thead>
                             <tbody id="aiTableBody">
@@ -90,7 +90,7 @@
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h4>💼 実際に購入した銘柄リスト</h4>
                     <div>
-                        <button class="btn btn-outline-secondary me-2" onclick="copyPortfolioJSON()">📋 登録データをAIへ同期用にコピー</button>
+                        <button class="btn btn-outline-secondary me-2" onclick="copyPortfolioJSON()">📋 登録データをコピー</button>
                         <button class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#addStockModal">
                             ➕ 画面から購入銘柄を即時追加
                         </button>
@@ -119,7 +119,7 @@
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th>購入日</th>
+                                    <th>購入日時</th>
                                     <th>銘柄コード/企業名</th>
                                     <th>買付単価</th>
                                     <th>保有株数</th>
@@ -166,8 +166,8 @@
                             <input type="number" class="form-control" id="inputShares" value="100" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">購入日</label>
-                            <input type="date" class="form-control" id="inputBuyDate" required>
+                            <label class="form-label">購入日時</label>
+                            <input type="datetime-local" class="form-control" id="inputBuyDate" required>
                         </div>
                     </form>
                 </div>
@@ -229,8 +229,7 @@
                 return;
             }
 
-            history.slice().reverse().forEach((item, revIndex) => {
-                const originalIndex = history.length - 1 - revIndex;
+            history.slice().reverse().forEach((item) => {
                 const st = item.status;
                 const entryP = parseFloat(item.entry_price || 0);
                 const targetP = parseFloat(item.target_price || 0);
@@ -238,6 +237,7 @@
                 const currP = parseFloat(item.current_price || entryP);
                 const retP = parseFloat(item.return_pct || 0);
                 const simAmt = entryP * 100;
+                const closedAt = item.closed_at || '-';
                 
                 if (st === 'WIN') { wins++; totalClosed++; totalReturn += retP; }
                 else if (st === 'LOSS') { losses++; totalClosed++; totalReturn += retP; }
@@ -251,7 +251,7 @@
 
                 tbody.innerHTML += `
                     <tr>
-                        <td>${item.date || '-'}</td>
+                        <td><small>${item.date || '-'}</small></td>
                         <td><strong>${item.name || item.ticker_code || item.ticker}</strong></td>
                         <td><span class="badge bg-secondary">${item.score || 60}点</span></td>
                         <td>${entryP.toLocaleString()}円</td>
@@ -261,7 +261,7 @@
                         <td>${currP.toLocaleString()}円</td>
                         <td class="${retCls}"><strong>${retSign}${retP.toFixed(2)}%</strong></td>
                         <td>${badge}</td>
-                        <td><button class="btn btn-sm btn-outline-danger" onclick="deleteAISignal(${originalIndex})">削除</button></td>
+                        <td><small class="text-muted">${closedAt}</small></td>
                     </tr>
                 `;
             });
@@ -277,14 +277,6 @@
 
             document.getElementById('aiTotalCountText').innerText = history.length + '件';
             document.getElementById('aiOpenCountText').innerText = '監視中: ' + (history.length - totalClosed) + '件';
-        }
-
-        function deleteAISignal(index) {
-            if (confirm('この実測シグナルを消去しますか？')) {
-                const history = getLocalHistory();
-                history.splice(index, 1);
-                saveLocalHistory(history);
-            }
         }
 
         function renderRealPortfolio() {
@@ -318,7 +310,7 @@
 
                 tbody.innerHTML += `
                     <tr>
-                        <td>${item.buy_date || '-'}</td>
+                        <td><small>${item.buy_date || '-'}</small></td>
                         <td><strong>${item.name || item.ticker}</strong></td>
                         <td>${buyP.toLocaleString()}円</td>
                         <td>${shares.toLocaleString()}株</td>
@@ -342,7 +334,8 @@
             let name = document.getElementById('inputName').value.trim();
             const buyPrice = parseFloat(document.getElementById('inputBuyPrice').value);
             const shares = parseInt(document.getElementById('inputShares').value);
-            const buyDate = document.getElementById('inputBuyDate').value;
+            const buyDateRaw = document.getElementById('inputBuyDate').value;
+            const buyDate = buyDateRaw.replace('T', ' ');
 
             if (!ticker || isNaN(buyPrice) || isNaN(shares) || !buyDate) {
                 alert('すべての必須項目を正しく入力してください。');
@@ -387,14 +380,16 @@
             const portfolio = getLocalPortfolio();
             const str = JSON.stringify(portfolio, null, 2);
             navigator.clipboard.writeText(str).then(() => {
-                alert('現在画面で追加・編集したポートフォリオのJSONコードをクリップボードにコピーしました！AIへの連絡やサーバー同期にご利用いただけます。');
+                alert('現在画面で追加・編集したポートフォリオのJSONコードをコピーしました！');
             }).catch(err => {
                 prompt('以下をコピーしてください:', str);
             });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('inputBuyDate').valueAsDate = new Date();
+            const now = new Date();
+            const nowISO = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0,16);
+            document.getElementById('inputBuyDate').value = nowISO;
             renderAIHistory();
             renderRealPortfolio();
         });
