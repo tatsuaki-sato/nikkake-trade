@@ -78,7 +78,6 @@ def update_signal_performance():
     if not history and not real_portfolio:
         return
 
-    # 全株価の一律更新
     all_tickers = []
     if history:
         all_tickers.extend([item.get("ticker_code", item.get("ticker", "")) + ".T" for item in history if item.get("status") == "OPEN"])
@@ -96,7 +95,6 @@ def update_signal_performance():
         print(f"株追跡データ取得エラー: {e}")
         return
 
-    # 1. AI推奨シグナルの更新
     for item in history:
         if item.get("status") != "OPEN":
             continue
@@ -139,7 +137,6 @@ def update_signal_performance():
 
     save_history(history)
 
-    # 2. リアル購入ポートフォリオの現在評価額更新
     for item in real_portfolio:
         code = item.get("ticker", "")
         symbol = code + ".T"
@@ -192,11 +189,11 @@ def generate_weekly_report() -> str:
         sim_a = entry * 100
         
         if st == "WIN":
-            text += f"・🎯 **{name}** (推奨価: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円) ➔ **利確達成 🎉 ({ret:+.1f}%)**\n"
+            text += f"・🎯 **{name}** (推奨: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円) ➔ **利確達成 🎉 ({ret:+.1f}%)**\n"
         elif st == "LOSS":
-            text += f"・🛑 **{name}** (推奨価: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円) ➔ **損切り撤退 🛑 ({ret:+.1f}%)**\n"
+            text += f"・🛑 **{name}** (推奨: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円) ➔ **損切り撤退 🛑 ({ret:+.1f}%)**\n"
         else:
-            text += f"・👀 **{name}** (推奨価: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円 / {ret:+.1f}% 監視中)\n"
+            text += f"・👀 **{name}** (推奨: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円 / {ret:+.1f}% 監視中)\n"
             
     if real_portfolio:
         text += "\n💼 **【My リアル購入ポートフォリオ実効損益】**\n"
@@ -215,7 +212,6 @@ def generate_html_dashboard(history: list, real_portfolio: list):
     win_rate = (wins / total_closed * 100) if total_closed > 0 else 0.0
     total_return = sum([i.get("return_pct", 0) for i in history if i.get("status") in ["WIN", "LOSS"]])
 
-    # タブ1: AI推奨シグナルのテーブル生成
     ai_rows_html = ""
     for item in reversed(history):
         st = item.get("status")
@@ -239,36 +235,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
         </tr>
         """
 
-    # タブ2: My リアル購入ポートフォリオのテーブル生成
-    real_rows_html = ""
-    total_real_invest = 0
-    total_real_pnl = 0
-    
-    for item in real_portfolio:
-        name = item.get("name", get_company_name(item.get("ticker", "")))
-        buy_p = item.get("buy_price", 0)
-        shares = item.get("shares", 100)
-        invest = buy_p * shares
-        curr_p = item.get("current_price", buy_p)
-        pnl_y = item.get("pnl_yen", (curr_p - buy_p) * shares)
-        pnl_p = item.get("pnl_pct", ((curr_p - buy_p) / buy_p * 100) if buy_p > 0 else 0)
-        
-        total_real_invest += invest
-        total_real_pnl += pnl_y
-        
-        pnl_badge_cls = "text-success" if pnl_y >= 0 else "text-danger"
-        real_rows_html += f"""
-        <tr>
-            <td>{item.get('buy_date', '-')}</td>
-            <td><strong>{name}</strong></td>
-            <td>{buy_p:,.1f}円</td>
-            <td>{shares:,}株</td>
-            <td>{invest/10000:,.1f}万円</td>
-            <td>{curr_p:,.1f}円</td>
-            <td class="{pnl_badge_cls}"><strong>{pnl_y:+,.0f}円 ({pnl_p:+.2f}%)</strong></td>
-            <td><small class="text-muted">{item.get('note', '')}</small></td>
-        </tr>
-        """
+    server_real_json = json.dumps(real_portfolio, ensure_ascii=False)
 
     html_content = f"""<!DOCTYPE html>
 <html lang="ja">
@@ -355,41 +322,47 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 
             <!-- タブ2: My リアル購入ポートフォリオ -->
             <div class="tab-pane fade" id="real-panel" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4>💼 実際に購入した銘柄リスト</h4>
+                    <button class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#addStockModal">
+                        ➕ 画面から購入銘柄を即時追加
+                    </button>
+                </div>
+
                 <div class="row mb-4">
                     <div class="col-md-6">
                         <div class="card card-stat bg-white p-3 text-center">
                             <div class="text-muted">総投資金額</div>
-                            <div class="display-5 text-dark fw-bold">{total_real_invest/10000:,.1f}万円</div>
+                            <div class="display-5 text-dark fw-bold" id="totalInvestText">0.0万円</div>
                             <small>購入済み保有額合計</small>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="card card-stat bg-white p-3 text-center">
                             <div class="text-muted">リアル評価損益合計</div>
-                            <div class="display-5 {'text-success' if total_real_pnl >= 0 else 'text-danger'} fw-bold">{total_real_pnl:+,.0f}円</div>
+                            <div class="display-5 fw-bold" id="totalPnlText">+0円</div>
                             <small>含み益 / 含み損</small>
                         </div>
                     </div>
                 </div>
 
                 <div class="card bg-white p-4 card-stat">
-                    <h5 class="card-title mb-3">💼 実際に購入した銘柄リスト</h5>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
                                 <tr>
                                     <th>購入日</th>
-                                    <th>企業名</th>
+                                    <th>銘柄コード/企業名</th>
                                     <th>買付単価</th>
                                     <th>保有株数</th>
                                     <th>投資金額</th>
                                     <th>現在株価</th>
                                     <th>評価損益 (円/%)</th>
-                                    <th>備考</th>
+                                    <th>操作</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {real_rows_html if real_rows_html else '<tr><td colspan="8" class="text-center text-muted">購入データが登録されていません (data/real_portfolio.json に記述)</td></tr>'}
+                            <tbody id="realPortfolioTableBody">
+                                <!-- JSで動的レンダリング -->
                             </tbody>
                         </table>
                     </div>
@@ -397,6 +370,164 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             </div>
         </div>
     </div>
+
+    <!-- 銘柄登録モーダル -->
+    <div class="modal fade" id="addStockModal" tabindex="-1" aria-labelledby="addStockModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addStockModalLabel">➕ 実際に購入した銘柄を追加</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addStockForm">
+                        <div class="mb-3">
+                            <label class="form-label">銘柄コード (4桁)</label>
+                            <input type="text" class="form-control" id="inputTicker" placeholder="例: 7203" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">企業名 / 備考 (任意)</label>
+                            <input type="text" class="form-control" id="inputName" placeholder="例: トヨタ自動車">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">買付単価 (円)</label>
+                            <input type="number" step="0.1" class="form-control" id="inputBuyPrice" placeholder="例: 3000" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">購入株数 (株)</label>
+                            <input type="number" class="form-control" id="inputShares" value="100" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">購入日</label>
+                            <input type="date" class="form-control" id="inputBuyDate" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                    <button type="button" class="btn btn-primary" onclick="addRealStockFromForm()">画面に追加して保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const serverPortfolio = {server_real_json};
+        
+        function getLocalPortfolio() {{
+            const stored = localStorage.getItem('user_real_portfolio');
+            if (stored) {{
+                try {{ return JSON.parse(stored); }} catch(e) {{}}
+            }}
+            return serverPortfolio;
+        }}
+        
+        function saveLocalPortfolio(data) {{
+            localStorage.setItem('user_real_portfolio', JSON.stringify(data));
+            renderRealPortfolio();
+        }}
+
+        function renderRealPortfolio() {{
+            const portfolio = getLocalPortfolio();
+            const tbody = document.getElementById('realPortfolioTableBody');
+            tbody.innerHTML = '';
+            
+            let totalInvest = 0;
+            let totalPnl = 0;
+
+            if (!portfolio || portfolio.length === 0) {{
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">まだ購入銘柄が登録されていません。「➕ 画面から購入銘柄を即時追加」ボタンを押して登録してください。</td></tr>';
+                document.getElementById('totalInvestText').innerText = '0.0万円';
+                document.getElementById('totalPnlText').innerText = '+0円';
+                return;
+            }}
+
+            portfolio.forEach((item, index) => {{
+                const buyP = parseFloat(item.buy_price || 0);
+                const shares = parseInt(item.shares || 100);
+                const currP = parseFloat(item.current_price || buyP);
+                const invest = buyP * shares;
+                const pnlY = (currP - buyP) * shares;
+                const pnlP = buyP > 0 ? ((currP - buyP) / buyP * 100) : 0;
+
+                totalInvest += invest;
+                totalPnl += pnlY;
+
+                const pnlCls = pnlY >= 0 ? 'text-success' : 'text-danger';
+                const pnlSign = pnlY >= 0 ? '+' : '';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${{item.buy_date || '-'}}</td>
+                        <td><strong>${{item.name || item.ticker}}</strong></td>
+                        <td>${{buyP.toLocaleString()}}円</td>
+                        <td>${{shares.toLocaleString()}}株</td>
+                        <td>${{(invest / 10000).toFixed(1)}}万円</td>
+                        <td>${{currP.toLocaleString()}}円</td>
+                        <td class="${{pnlCls}}"><strong>${{pnlSign}}${{Math.round(pnlY).toLocaleString()}}円 (${{pnlSign}}${{pnlP.toFixed(2)}}%)</strong></td>
+                        <td><button class="btn btn-sm btn-outline-danger" onclick="deleteRealStock(${{index}})">削除</button></td>
+                    </tr>
+                `;
+            }});
+
+            document.getElementById('totalInvestText').innerText = (totalInvest / 10000).toFixed(1) + '万円';
+            const totalSign = totalPnl >= 0 ? '+' : '';
+            const totalPnlElem = document.getElementById('totalPnlText');
+            totalPnlElem.innerText = totalSign + Math.round(totalPnl).toLocaleString() + '円';
+            totalPnlElem.className = 'display-5 fw-bold ' + (totalPnl >= 0 ? 'text-success' : 'text-danger');
+        }}
+
+        function addRealStockFromForm() {{
+            const ticker = document.getElementById('inputTicker').value.trim();
+            let name = document.getElementById('inputName').value.trim();
+            const buyPrice = parseFloat(document.getElementById('inputBuyPrice').value);
+            const shares = parseInt(document.getElementById('inputShares').value);
+            const buyDate = document.getElementById('inputBuyDate').value;
+
+            if (!ticker || isNaN(buyPrice) || isNaN(shares) || !buyDate) {{
+                alert('すべての必須項目を正しく入力してください。');
+                return;
+            }}
+
+            if (!name) {{
+                name = ticker;
+            }}
+
+            const newItem = {{
+                id: 'user_' + Date.now(),
+                ticker: ticker,
+                name: name,
+                buy_date: buyDate,
+                buy_price: buyPrice,
+                shares: shares,
+                current_price: buyPrice,
+                note: '画面から直接登録'
+            }};
+
+            const portfolio = getLocalPortfolio();
+            portfolio.push(newItem);
+            saveLocalPortfolio(portfolio);
+
+            const modalElem = document.getElementById('addStockModal');
+            const modal = bootstrap.Modal.getInstance(modalElem);
+            if (modal) modal.hide();
+
+            document.getElementById('addStockForm').reset();
+        }}
+
+        function deleteRealStock(index) {{
+            if (confirm('この購入銘柄を削除しますか？')) {{
+                const portfolio = getLocalPortfolio();
+                portfolio.splice(index, 1);
+                saveLocalPortfolio(portfolio);
+            }}
+        }}
+
+        document.addEventListener('DOMContentLoaded', () => {{
+            document.getElementById('inputBuyDate').valueAsDate = new Date();
+            renderRealPortfolio();
+        }});
+    </script>
 </body>
 </html>
 """
