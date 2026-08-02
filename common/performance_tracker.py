@@ -77,9 +77,6 @@ def record_signal(ticker: str, entry_price: float, target_price: float, stop_los
     save_history(history)
 
 def scrape_kabutan_price(code: str) -> float:
-    """
-    yfinanceブロック時のバックアップ：株探（Kabutan）から日本株最新株価をスクレイピング
-    """
     try:
         url = f"https://kabutan.jp/stock/?code={code}"
         headers = {
@@ -97,9 +94,6 @@ def scrape_kabutan_price(code: str) -> float:
     return None
 
 def fetch_stock_data_robust(tickers: list):
-    """
-    クラウド環境（Render）でのレート制限・ブロック対策付き株価取得関数
-    """
     if not tickers:
         return None
         
@@ -167,10 +161,11 @@ def update_signal_performance():
             stop_p = item["stop_loss_price"]
 
             if df is not None and not df.empty:
-                rec_date_str = item["date"].split()[0]
+                rec_date_str = item["date"].split()[0] # "08-02"
                 current_year = datetime.now().year
                 try:
                     rec_dt = datetime.strptime(f"{current_year}-{rec_date_str}", "%Y-%m-%d")
+                    # 推奨日「当日以降」の株価データのみを抽出
                     df_after = df[df.index >= rec_dt]
                 except Exception:
                     df_after = df
@@ -191,6 +186,7 @@ def update_signal_performance():
                 trigger_closed_at = None
                 trigger_status = None
                 
+                # 推奨日以降のチャートを順番にスキャン
                 for idx, row in df_after.iterrows():
                     r_high = float(row["High"])
                     r_low = float(row["Low"])
@@ -206,6 +202,7 @@ def update_signal_performance():
                         trigger_closed_at = dt_formatted
                         break
                 
+                # 判定結果の更新（到達していない場合はOPENかつclosed_at='-'にリセット）
                 if trigger_status:
                     item["status"] = trigger_status
                     item["closed_at"] = trigger_closed_at if trigger_closed_at else now_time_str
@@ -224,7 +221,12 @@ def update_signal_performance():
                     item["current_price"] = scr_p
                     item["return_pct"] = round(((scr_p - entry_p) / entry_p) * 100, 2)
                     item["pnl_yen"] = round((scr_p - entry_p) * 100, 0)
+                # 株価取得不可の場合も過去の誤ったLOSS/WINを削除してリセット
+                item["status"] = "OPEN"
+                item["closed_at"] = "-"
         except Exception:
+            item["status"] = "OPEN"
+            item["closed_at"] = "-"
             continue
 
     save_history(history)
@@ -302,7 +304,11 @@ def update_signal_performance():
                     item["eval_amount"] = scr_p * shares
                     item["pnl_yen"] = round((scr_p - buy_p) * shares, 0)
                     item["pnl_pct"] = round(((scr_p - buy_p) / buy_p) * 100, 2) if buy_p > 0 else 0.0
+                item["status"] = "HOLD 保有中"
+                item["closed_at"] = "-"
         except Exception:
+            item["status"] = "HOLD 保有中"
+            item["closed_at"] = "-"
             continue
 
     save_real_portfolio(real_portfolio)
