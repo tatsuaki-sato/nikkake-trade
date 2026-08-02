@@ -123,9 +123,9 @@ def fetch_real_stock_metrics(code: str, df: pd.DataFrame) -> dict:
             metrics["EPS"] = f"{round(float(eps), 1)}円"
             
         div_yield = info.get("dividendYield")
-        if div_yield:
+        if div_yield is not None:
             val = float(div_yield)
-            if val < 1.0:
+            if val < 0.20:
                 val = val * 100
             metrics["配当利回り"] = f"{round(val, 1)}%"
     except Exception as e:
@@ -293,7 +293,7 @@ def update_signal_performance(force_refresh: bool = False):
                 if not item.get("details"):
                     item["details"] = {}
                 for k, v in real_m.items():
-                    if k not in item["details"]:
+                    if k not in item["details"] or "ダミー" in str(item["details"][k]):
                         item["details"][k] = v
             else:
                 item["status"] = "OPEN"
@@ -398,7 +398,7 @@ def update_signal_performance(force_refresh: bool = False):
                 if not item.get("details"):
                     item["details"] = {}
                 for k, v in real_m.items():
-                    if k not in item["details"]:
+                    if k not in item["details"] or "ダミー" in str(item["details"][k]):
                         item["details"][k] = v
             else:
                 item["status"] = "HOLD 保有中"
