@@ -7,6 +7,7 @@ import pandas as pd
 
 HISTORY_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "signal_history.json")
 DASHBOARD_HTML = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dashboard.html")
+INDEX_HTML = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "index.html")
 
 def load_history() -> list:
     if not os.path.exists(HISTORY_FILE):
@@ -23,12 +24,7 @@ def save_history(history: list):
         json.dump(history, f, ensure_ascii=False, indent=2)
 
 def record_signal(ticker: str, entry_price: float, target_price: float, stop_loss_price: float, score: int, details: dict):
-    """
-    AIが推奨を出したシグナルを自動記録
-    """
     history = load_history()
-    
-    # 既に同じ日に同じ銘柄が記録されていれば重複を防止
     today_str = datetime.now().strftime("%Y-%m-%d")
     for item in history:
         if item.get("ticker") == ticker and item.get("date") == today_str:
@@ -42,7 +38,7 @@ def record_signal(ticker: str, entry_price: float, target_price: float, stop_los
         "target_price": target_price,
         "stop_loss_price": stop_loss_price,
         "score": score,
-        "status": "OPEN", # OPEN, WIN, LOSS
+        "status": "OPEN",
         "current_price": entry_price,
         "max_price": entry_price,
         "min_price": entry_price,
@@ -53,9 +49,6 @@ def record_signal(ticker: str, entry_price: float, target_price: float, stop_los
     save_history(history)
 
 def update_signal_performance():
-    """
-    オープン中の全シグナルの最新株価を取得し、勝敗判定を行う
-    """
     history = load_history()
     if not history:
         return
@@ -86,7 +79,6 @@ def update_signal_performance():
             target_p = item["target_price"]
             stop_p = item["stop_loss_price"]
             
-            # 推奨日以降のデータを検証
             signal_date = item["date"]
             df_after = df[df.index >= signal_date]
             if df_after.empty:
@@ -101,7 +93,6 @@ def update_signal_performance():
             item["min_price"] = min(item.get("min_price", entry_p), low_price)
             item["return_pct"] = round(((latest_close - entry_p) / entry_p) * 100, 2)
             
-            # 勝敗判定: 目標株価到達なら WIN / 損切りライン到達なら LOSS
             if high_price >= target_p:
                 item["status"] = "WIN"
                 item["return_pct"] = round(((target_p - entry_p) / entry_p) * 100, 2)
@@ -122,9 +113,6 @@ def update_signal_performance():
         generate_html_dashboard(history)
 
 def generate_weekly_report() -> str:
-    """
-    LINE送信用の週次勝率・通算成績サマリーを生成
-    """
     update_signal_performance()
     history = load_history()
     
@@ -137,7 +125,6 @@ def generate_weekly_report() -> str:
     
     total_closed = len(wins) + len(losses)
     win_rate = (len(wins) / total_closed * 100) if total_closed > 0 else 0.0
-    
     total_return = sum([i.get("return_pct", 0) for i in history if i.get("status") in ["WIN", "LOSS"]])
     
     text = "🏆 **【AIトレード勝率・成績トラッキング通信】**\n"
@@ -165,9 +152,6 @@ def generate_weekly_report() -> str:
     return text
 
 def generate_html_dashboard(history: list):
-    """
-    ブラウザでビジュアル確認できる dashboard.html を自動更新
-    """
     wins = len([i for i in history if i.get("status") == "WIN"])
     losses = len([i for i in history if i.get("status") == "LOSS"])
     total_closed = wins + losses
@@ -198,6 +182,7 @@ def generate_html_dashboard(history: list):
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Trade Signal Performance Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -257,8 +242,9 @@ def generate_html_dashboard(history: list):
 </body>
 </html>
 """
-    try:
-        with open(DASHBOARD_HTML, "w", encoding="utf-8") as f:
-            f.write(html_content)
-    except Exception as e:
-        print(f"HTMLダッシュボード作成エラー: {e}")
+    for file_path in [DASHBOARD_HTML, INDEX_HTML]:
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(html_content)
+        except Exception as e:
+            print(f"HTML作成エラー ({file_path}): {e}")
