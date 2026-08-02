@@ -6,7 +6,7 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from common.notifier import notify
-from modules.post_analysis.advanced_scraper import get_x_sentiment_score, get_kabutan_news, get_market_trending_themes
+from modules.post_analysis.advanced_scraper import get_x_sentiment_score, get_kabutan_news, get_market_trending_themes, get_stock_financial_perks
 from modules.post_analysis.quant_analyzer import evaluate_quant_factors
 
 TARGET_TICKERS = [
@@ -43,12 +43,15 @@ def run_predictor():
             
             if score >= 60 and is_quant_prediction:
                 news = get_kabutan_news(ticker)
+                financial_perks = get_stock_financial_perks(ticker)
                 hit_list.append({
                     "銘柄コード": ticker.replace('.T', ''),
                     "終値": stock_df.iloc[-1]['Close'],
                     "スコア": score,
                     "詳細": quant_result['details'],
-                    "ニュース": news
+                    "ニュース": news,
+                    "配当利回り": financial_perks.get('dividend_yield', 'データなし'),
+                    "株主優待": financial_perks.get('yutai_info', 'なし')
                 })
         except Exception as e:
             print(f"予測分析エラー ({ticker}): {e}")
@@ -62,6 +65,7 @@ def run_predictor():
             tv_link = f"https://jp.tradingview.com/chart/?symbol=TSE%3A{hit['銘柄コード']}"
             notify_text += f"🚀 **{hit['銘柄コード']}** (クオンツスコア: **{hit['スコア']}点**)\n"
             notify_text += f"・チャート: {tv_link}\n"
+            notify_text += f"・💰 **配当利回り**: {hit['配当利回り']} / 🎁 **株主優待**: {hit['株主優待']}\n"
             notify_text += f"・**【数理シグナル要因】**\n"
             for k, v in hit['詳細'].items():
                 if "[0点]" not in v:
@@ -72,14 +76,14 @@ def run_predictor():
             notify_text += "\n"
         notify(notify_text)
     else:
-        # ヒット銘柄がない場合のトレンドテーマ情報補完
-        trending_themes = get_market_trending_themes()
-        notify_text = "🔮 **【クオンツ未来予測】本日の市場トレンド＆人気テーマ情報**\n"
-        notify_text += "本日ブレイクアウト条件を満たす特定銘柄は検出されませんでしたが、現在市場で最も関心を集めている注目のホットテーマは以下の通りです：\n\n"
-        notify_text += "🌟 **【市場注目テーマ TOP 5】**\n"
-        for i, theme in enumerate(trending_themes[:5], 1):
-            notify_text += f"{i}. **{theme}**\n"
-        notify_text += "\n※テーマ関連銘柄の資金流入とブレイクアウト兆候を引き続き全自動で監視します。"
+        theme_details = get_market_trending_themes()
+        notify_text = "🔮 **【クオンツ未来予測】本日の市場トレンド＆関連銘柄情報**\n"
+        notify_text += "本日ブレイクアウト条件を満たす特定銘柄は検出されませんでしたが、現在市場で最も関心を集めている注目テーマと代表的な関連株は以下の通りです：\n\n"
+        notify_text += "🌟 **【市場注目テーマ TOP 5 ＆ 関連代表株】**\n"
+        for i, item in enumerate(theme_details[:5], 1):
+            stocks_str = ", ".join(item['stocks'])
+            notify_text += f"{i}. **{item['theme']}**\n   └ 関連代表銘柄: {stocks_str}\n"
+        notify_text += "\n※テーマ関連銘柄の資金流入とブレイクアウト兆候を全自動で継続監視します。"
         
         notify(notify_text)
 
