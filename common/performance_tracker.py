@@ -103,13 +103,8 @@ def fetch_stock_data_robust(tickers: list):
     if not tickers:
         return None
         
-    session = requests.Session()
-    session.headers.update({
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
-    })
-    
     try:
-        data = yf.download(tickers, period="3mo", interval="1d", group_by="ticker", progress=False, threads=False, session=session)
+        data = yf.download(tickers, period="3mo", interval="1d", group_by="ticker", progress=False, threads=False)
         if data is not None and not data.empty:
             return data
     except Exception as e:
@@ -118,7 +113,7 @@ def fetch_stock_data_robust(tickers: list):
     result_dict = {}
     for t in tickers:
         try:
-            tk = yf.Ticker(t, session=session)
+            tk = yf.Ticker(t)
             df = tk.history(period="3mo", interval="1d")
             if df is not None and not df.empty:
                 result_dict[t] = df
@@ -224,7 +219,6 @@ def update_signal_performance():
                     item["status"] = "OPEN"
                     item["closed_at"] = "-"
             else:
-                # 株探バックアップフォールバック
                 scr_p = scrape_kabutan_price(code)
                 if scr_p:
                     item["current_price"] = scr_p
