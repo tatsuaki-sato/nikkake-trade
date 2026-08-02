@@ -11,15 +11,18 @@
         .card-stat { border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: none; }
         .nav-tabs .nav-link.active { font-weight: bold; border-bottom: 3px solid #0d6efd; }
         .table-responsive { font-size: 0.92rem; }
+        .updating-badge { font-size: 0.8rem; background-color: #e2e3e5; color: #383d41; border-radius: 4px; padding: 2px 6px; display: inline-block; }
     </style>
 </head>
 <body>
     <div class="container-fluid px-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>📈 nikkake-trade - AI Signal & Real Portfolio Dashboard</h2>
-            <div>
-                <button class="btn btn-outline-primary btn-sm me-2" onclick="refreshData()">🔄 データ再読み込み</button>
-                <span class="badge bg-primary fs-6">更新: 08-03 01:00</span>
+            <div class="d-flex align-items-center">
+                <span id="updateSpinner" class="spinner-border spinner-border-sm text-primary me-2 d-none" role="status"></span>
+                <span id="updateStatusText" class="text-muted me-3 small">10分キャッシュ有効中</span>
+                <button class="btn btn-outline-primary btn-sm me-2" onclick="refreshData(true)">🔄 データ再読み込み (手動更新)</button>
+                <span class="badge bg-primary fs-6">更新: 08-03 01:05</span>
             </div>
         </div>
 
@@ -239,6 +242,7 @@
     <script>
         const serverHistory = [{"id": "7203.T_2026-08-02", "date": "08-02 15:30", "ticker": "7203", "entry_price": 3000.0, "target_price": 3270.0, "stop_loss_price": 2820.0, "score": 85, "status": "OPEN", "current_price": 3000.0, "max_price": 3233.0, "min_price": 2686.0, "return_pct": 0.0, "details": {"Residual_Momentum": "テスト"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "-"}, {"id": "8035_2026-08-02", "date": "08-02 15:30", "ticker_code": "8035", "name": "8035 東京エレクトロン", "entry_price": 55500.0, "sim_amount": 5550000.0, "target_price": 58830.0, "stop_loss_price": 53280.0, "score": 65, "status": "OPEN", "current_price": 55500.0, "max_price": 81260.0, "min_price": 43980.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "-"}, {"id": "6920_2026-08-02", "date": "08-02 15:30", "ticker_code": "6920", "name": "6920 レーザーテック", "entry_price": 37910.0, "sim_amount": 3791000.0, "target_price": 40184.6, "stop_loss_price": 36393.6, "score": 65, "status": "OPEN", "current_price": 37910.0, "max_price": 58349.2, "min_price": 33200.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "-"}, {"id": "6857_2026-08-02", "date": "08-02 15:30", "ticker_code": "6857", "name": "6857 アドバンテスト", "entry_price": 32500.0, "sim_amount": 3250000.0, "target_price": 34450.0, "stop_loss_price": 31200.0, "score": 65, "status": "OPEN", "current_price": 32500.0, "max_price": 35940.0, "min_price": 24135.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "-"}, {"id": "9984_2026-08-02", "date": "08-02 15:30", "ticker_code": "9984", "name": "9984 ソフトバンクグループ", "entry_price": 5260.0, "sim_amount": 526000.0, "target_price": 5575.6, "stop_loss_price": 5049.6, "score": 65, "status": "OPEN", "current_price": 5260.0, "max_price": 9074.0, "min_price": 4500.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "-"}, {"id": "6702_2026-08-02", "date": "08-02 15:30", "ticker_code": "6702", "name": "6702 富士通", "entry_price": 3659.0, "sim_amount": 365900.0, "target_price": 3878.54, "stop_loss_price": 3512.64, "score": 65, "status": "OPEN", "current_price": 3659.0, "max_price": 3928.0, "min_price": 3016.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "-"}, {"id": "6701_2026-08-02", "date": "08-02 15:30", "ticker_code": "6701", "name": "6701 NEC", "entry_price": 4740.0, "sim_amount": 474000.0, "target_price": 5024.4, "stop_loss_price": 4550.4, "score": 65, "status": "OPEN", "current_price": 4740.0, "max_price": 5104.0, "min_price": 3657.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "-"}, {"id": "7203_2026-08-02", "date": "08-02 15:30", "ticker_code": "7203", "name": "7203 トヨタ自動車", "entry_price": 3067.0, "sim_amount": 306700.0, "target_price": 3251.02, "stop_loss_price": 2944.32, "score": 65, "status": "OPEN", "current_price": 3067.0, "max_price": 3233.0, "min_price": 2686.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "-"}, {"id": "8306_2026-08-02", "date": "08-02 15:30", "ticker_code": "8306", "name": "8306 三菱UFJフィナンシャルG", "entry_price": 3571.0, "sim_amount": 357100.0, "target_price": 3785.26, "stop_loss_price": 3428.16, "score": 65, "status": "OPEN", "current_price": 3571.0, "max_price": 3813.0, "min_price": 2754.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "-"}, {"id": "9432_2026-08-02", "date": "08-02 15:30", "ticker_code": "9432", "name": "9432 NTT (日本電信電話)", "entry_price": 152.39999389648438, "sim_amount": 15239.999389648438, "target_price": 161.54399353027344, "stop_loss_price": 146.303994140625, "score": 65, "status": "OPEN", "current_price": 152.39999389648438, "max_price": 161.2, "min_price": 142.6, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "-"}];
         const serverPortfolio = [];
+        let isFetchingBackground = false;
 
         async function fetchHistoryAPI() {
             try {
@@ -342,6 +346,10 @@
                 const retSign = pnlYen >= 0 ? '+' : '';
                 const metricsHTML = formatMetricsHTML(item.details, entryP);
 
+                const priceCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `${currP.toLocaleString()}円`;
+                const pnlCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `<strong>${retSign}${Math.round(pnlYen).toLocaleString()}円 (${retSign}${retP.toFixed(2)}%)</strong>`;
+                const statusCol = isFetchingBackground ? '<span class="updating-badge">🔄 判定中</span>' : badge;
+
                 tbody.innerHTML += `
                     <tr>
                         <td><small class="fw-bold">${dtFormatted}</small></td>
@@ -350,9 +358,9 @@
                         <td><strong>${entryP.toLocaleString()}円</strong><br><small class="text-muted">(${(simAmt / 10000).toFixed(1)}万円)</small></td>
                         <td>${targetP.toLocaleString()}円</td>
                         <td>${stopP.toLocaleString()}円</td>
-                        <td>${currP.toLocaleString()}円</td>
-                        <td class="${retCls}"><strong>${retSign}${Math.round(pnlYen).toLocaleString()}円 (${retSign}${retP.toFixed(2)}%)</strong></td>
-                        <td>${badge}</td>
+                        <td>${priceCol}</td>
+                        <td class="${retCls}">${pnlCol}</td>
+                        <td>${statusCol}</td>
                         <td><small class="text-muted">${closedAtFormatted}</small></td>
                         <td>${metricsHTML}</td>
                         <td><button class="btn btn-sm btn-outline-danger" onclick="deleteAISignal('${item.id || originalIndex}')">削除</button></td>
@@ -414,6 +422,10 @@
                     st.includes('LOSS') ? '<span class="badge bg-danger">LOSS 損切</span>' : '<span class="badge bg-primary">HOLD 保有中</span>'
                 );
 
+                const priceCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `${currP.toLocaleString()}円`;
+                const pnlCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `<strong>${pnlSign}${Math.round(pnlY).toLocaleString()}円 (${pnlSign}${pnlP.toFixed(2)}%)</strong>`;
+                const statusCol = isFetchingBackground ? '<span class="updating-badge">🔄 判定中</span>' : badge;
+
                 tbody.innerHTML += `
                     <tr>
                         <td><small class="fw-bold">${bDtFormatted}</small></td>
@@ -422,9 +434,9 @@
                         <td><strong>${buyP.toLocaleString()}円</strong><br><small class="text-muted">(${(invest / 10000).toFixed(1)}万円)</small></td>
                         <td>${targetP.toLocaleString()}円</td>
                         <td>${stopP.toLocaleString()}円</td>
-                        <td>${currP.toLocaleString()}円</td>
-                        <td class="${pnlCls}"><strong>${pnlSign}${Math.round(pnlY).toLocaleString()}円 (${pnlSign}${pnlP.toFixed(2)}%)</strong></td>
-                        <td>${badge}</td>
+                        <td>${priceCol}</td>
+                        <td class="${pnlCls}">${pnlCol}</td>
+                        <td>${statusCol}</td>
                         <td><small class="text-muted">${closedAtFormatted}</small></td>
                         <td>${metricsHTML}</td>
                         <td><button class="btn btn-sm btn-outline-danger" onclick="deleteRealStock('${itemId}')">削除</button></td>
@@ -437,6 +449,31 @@
             const totalPnlElem = document.getElementById('totalPnlText');
             totalPnlElem.innerText = totalSign + Math.round(totalPnl).toLocaleString() + '円';
             totalPnlElem.className = 'display-5 fw-bold ' + (totalPnl >= 0 ? 'text-success' : 'text-danger');
+        }
+
+        async function refreshData(isManual = false) {
+            const spinner = document.getElementById('updateSpinner');
+            const statusText = document.getElementById('updateStatusText');
+            
+            spinner.classList.remove('d-none');
+            statusText.innerText = isManual ? '🔄 最新株価を取得中...' : '10分キャッシュ更新中...';
+            isFetchingBackground = true;
+            renderAIHistory();
+            renderRealPortfolio();
+
+            try {
+                const url = isManual ? '/api/refresh?force=true' : '/api/refresh';
+                await fetch(url, { method: 'POST' });
+            } catch(e) {}
+
+            // 1.5秒後に更新完了データへ切り替え
+            setTimeout(async () => {
+                isFetchingBackground = false;
+                spinner.classList.add('d-none');
+                statusText.innerText = '10分キャッシュ有効中';
+                await renderAIHistory();
+                await renderRealPortfolio();
+            }, 1500);
         }
 
         async function addSignalFromForm() {
@@ -526,14 +563,6 @@
                     }
                 } catch(e) {}
             }
-        }
-
-        async function refreshData() {
-            try {
-                await fetch('/api/refresh', { method: 'POST' });
-            } catch(e) {}
-            renderAIHistory();
-            renderRealPortfolio();
         }
 
         document.addEventListener('DOMContentLoaded', () => {

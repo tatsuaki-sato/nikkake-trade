@@ -40,9 +40,9 @@ class AISignalInput(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 def get_dashboard(background_tasks: BackgroundTasks):
     """
-    画面を0.01秒で即時返却し、裏でバックグラウンド更新
+    画面を0.01秒で即時返却（10分間キャッシュ有効、アクセス回数削減）
     """
-    background_tasks.add_task(update_signal_performance)
+    background_tasks.add_task(update_signal_performance, False)
     if os.path.exists(INDEX_FILE):
         with open(INDEX_FILE, "r", encoding="utf-8") as f:
             return f.read()
@@ -58,7 +58,7 @@ def get_api_history():
 @app.post("/api/history")
 def add_api_history(signal: AISignalInput, background_tasks: BackgroundTasks):
     """
-    画面から推奨候補銘柄を即時追加（0.01秒で signal_history.json へ永久保存）
+    画面から推奨候補銘柄を即時追加（0.01秒保存）
     """
     code = signal.ticker.replace('.T', '').strip()
     name = signal.name.strip() if signal.name and signal.name.strip() else get_company_name(code)
@@ -101,7 +101,7 @@ def add_api_history(signal: AISignalInput, background_tasks: BackgroundTasks):
 @app.delete("/api/history/{signal_id}")
 def delete_api_history(signal_id: str):
     """
-    AI推奨シグナル実測データを直接削除（0.01秒でファイル更新）
+    AI推奨シグナル実測データを直接削除
     """
     history = load_history()
     new_history = [item for item in history if item.get("id") != signal_id]
@@ -128,7 +128,7 @@ def get_api_portfolio():
 @app.post("/api/portfolio")
 def add_api_portfolio(stock: RealStockInput, background_tasks: BackgroundTasks):
     """
-    画面からリアル購入銘柄を即時追加（0.01秒で real_portfolio.json へ永久保存）
+    画面からリアル購入銘柄を即時追加
     """
     code = stock.ticker.replace('.T', '').strip()
     name = stock.name.strip() if stock.name and stock.name.strip() else get_company_name(code)
@@ -165,7 +165,7 @@ def add_api_portfolio(stock: RealStockInput, background_tasks: BackgroundTasks):
 @app.delete("/api/portfolio/{index_or_id}")
 def delete_api_portfolio(index_or_id: str):
     """
-    画面からリアル購入銘柄を即時削除（0.01秒で real_portfolio.json を直接更新）
+    画面からリアル購入銘柄を即時削除
     """
     portfolio = load_real_portfolio()
     new_portfolio = [item for item in portfolio if item.get("id") != index_or_id]
@@ -178,16 +178,16 @@ def delete_api_portfolio(index_or_id: str):
         except ValueError:
             pass
             
-    save_portfolio(new_portfolio)
+    save_real_portfolio(new_portfolio)
     return {"status": "success", "message": f"Portfolio item {index_or_id} deleted"}
 
 @app.post("/api/refresh")
-def refresh_api_data(background_tasks: BackgroundTasks):
+def refresh_api_data(background_tasks: BackgroundTasks, force: bool = False):
     """
-    最新株価の即時再取得
+    最新株価の即時再取得（右上のボタンクリック時のみ force=True）
     """
-    background_tasks.add_task(update_signal_performance, True)
-    return {"status": "success", "time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    background_tasks.add_task(update_signal_performance, force)
+    return {"status": "success", "forced": force, "time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 if __name__ == "__main__":
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] nikkake-trade FastAPI サーバー起動: http://localhost:8000")

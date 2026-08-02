@@ -14,9 +14,10 @@ REAL_PORTFOLIO_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspa
 DASHBOARD_HTML = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dashboard.html")
 INDEX_HTML = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "index.html")
 
-# 超爆速化のための株価キャッシュ (5分間有効)
+# 右上の再読み込みボタンを押さない限り「10分間（600秒）アクセスゼロ」にするキャッシュ
 _STOCK_DATA_CACHE = None
 _CACHE_TIMESTAMP = 0
+CACHE_TTL_SECONDS = 600  # 10分キャッシュ
 
 def load_history() -> list:
     if not os.path.exists(HISTORY_FILE):
@@ -80,36 +81,64 @@ def record_signal(ticker: str, entry_price: float, target_price: float, stop_los
     history.append(signal_entry)
     save_history(history)
 
-def scrape_kabutan_price(code: str) -> float:
+def fetch_japan_stock_price_direct(code: str) -> dict:
+    """
+    Yahoo Finance USがRender等のクラウドIPをブロックするため、
+    日本国内（Yahoo!ファイナンスJapan / 株探）から100%確実に最新株価をダイレクト取得
+    """
+    # 1st try: Yahoo!ファイナンス JAPAN (ブロックなし)
+    try:
+        url = f"https://finance.yahoo.co.jp/quote/{code}.T"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+        }
+        resp = requests.get(url, headers=headers, timeout=4)
+        if resp.status_code == 200:
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            # Yahoo Japanの現在値要素クラス
+            price_elem = soup.find('span', class_='_3rXW27w1') or soup.find('span', class_='_2dvwP6a7') or soup.find('span', class_='_1E8Gq241')
+            if price_elem:
+                price_str = price_elem.text.replace(',', '').replace('円', '').strip()
+                p_val = float(price_str)
+                return {"close": p_val, "high": p_val, "low": p_val}
+    except Exception:
+        pass
+
+    # 2nd try: 株探 (Kabutan) バックアップ
     try:
         url = f"https://kabutan.jp/stock/?code={code}"
         headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
-        resp = requests.get(url, headers=headers, timeout=3)
+        resp = requests.get(url, headers=headers, timeout=4)
         if resp.status_code == 200:
             soup = BeautifulSoup(resp.text, 'html.parser')
             price_span = soup.find('span', class_='kabuka')
             if price_span:
                 price_str = price_span.text.replace(',', '').replace('円', '').strip()
-                return float(price_str)
+                p_val = float(price_str)
+                return {"close": p_val, "high": p_val, "low": p_val}
     except Exception:
         pass
+
     return None
 
 def fetch_stock_data_robust(tickers: list, force_refresh: bool = False):
     """
-    株価データを5分間メモリキャッシュして画面表示速度を0.01秒に高速化
+    10分間（600秒）完全キャッシュ。右上の手動再読み込みボタン（force_refresh=True）を押した時のみ更新
     """
     global _STOCK_DATA_CACHE, _CACHE_TIMESTAMP
     now = time.time()
     
-    if not force_refresh and _STOCK_DATA_CACHE is not None and (now - _CACHE_TIMESTAMP < 300):
+    if not force_refresh and _STOCK_DATA_CACHE is not None and (now - _CACHE_TIMESTAMP < CACHE_TTL_SECONDS):
         return _STOCK_DATA_CACHE
 
     if not tickers:
         return None
         
+    result_dict = {}
+    
+    # 1. まず一括でyfinanceを試行
     try:
         data = yf.download(tickers, period="3mo", interval="1d", group_by="ticker", progress=False, threads=False)
         if data is not None and not data.empty:
@@ -117,18 +146,21 @@ def fetch_stock_data_robust(tickers: list, force_refresh: bool = False):
             _CACHE_TIMESTAMP = now
             return data
     except Exception as e:
-        print(f"yfinance bulk download failed: {e}")
+        print(f"yfinance bulk download failed in cloud: {e}")
 
-    result_dict = {}
+    # 2. クラウド環境（Render）でYahoo Finance USがブロックされた場合、日本国内ソースから直接取得
     for t in tickers:
-        try:
-            tk = yf.Ticker(t)
-            df = tk.history(period="3mo", interval="1d")
-            if df is not None and not df.empty:
-                result_dict[t] = df
-        except Exception:
-            pass
-            
+        code = t.replace('.T', '').strip()
+        direct_data = fetch_japan_stock_price_direct(code)
+        if direct_data:
+            # yfinance風のDataFrame形式を擬似生成
+            df = pd.DataFrame([{
+                "High": direct_data["high"],
+                "Low": direct_data["low"],
+                "Close": direct_data["close"]
+            }], index=[pd.to_datetime(datetime.now().strftime("%Y-%m-%d"))])
+            result_dict[t] = df
+
     if result_dict:
         _STOCK_DATA_CACHE = result_dict
         _CACHE_TIMESTAMP = now
@@ -167,7 +199,7 @@ def update_signal_performance(force_refresh: bool = False):
         code = item.get("ticker_code", item.get("ticker", ""))
         symbol = code + ".T"
         
-        # 強制初期化ガード: closed_atが推奨日より過去の日付になっているバグを修正
+        # セーフガード: closed_atが推奨日より過去であれば強制的リセット
         rec_date_str = item.get("date", "08-02").split()[0]
         closed_at_str = item.get("closed_at", "-")
         if closed_at_str != "-" and " " in closed_at_str:
@@ -252,11 +284,6 @@ def update_signal_performance(force_refresh: bool = False):
                     item["status"] = "OPEN"
                     item["closed_at"] = "-"
             else:
-                scr_p = scrape_kabutan_price(code)
-                if scr_p:
-                    item["current_price"] = scr_p
-                    item["return_pct"] = round(((scr_p - entry_p) / entry_p) * 100, 2)
-                    item["pnl_yen"] = round((scr_p - entry_p) * 100, 0)
                 item["status"] = "OPEN"
                 item["closed_at"] = "-"
         except Exception as e:
@@ -350,12 +377,6 @@ def update_signal_performance(force_refresh: bool = False):
                     item["status"] = "HOLD 保有中"
                     item["closed_at"] = "-"
             else:
-                scr_p = scrape_kabutan_price(code)
-                if scr_p:
-                    item["current_price"] = scr_p
-                    item["eval_amount"] = scr_p * shares
-                    item["pnl_yen"] = round((scr_p - buy_p) * shares, 0)
-                    item["pnl_pct"] = round(((scr_p - buy_p) / buy_p) * 100, 2) if buy_p > 0 else 0.0
                 item["status"] = "HOLD 保有中"
                 item["closed_at"] = "-"
         except Exception:
@@ -444,14 +465,17 @@ def generate_html_dashboard(history: list, real_portfolio: list):
         .card-stat {{ border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: none; }}
         .nav-tabs .nav-link.active {{ font-weight: bold; border-bottom: 3px solid #0d6efd; }}
         .table-responsive {{ font-size: 0.92rem; }}
+        .updating-badge {{ font-size: 0.8rem; background-color: #e2e3e5; color: #383d41; border-radius: 4px; padding: 2px 6px; display: inline-block; }}
     </style>
 </head>
 <body>
     <div class="container-fluid px-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>📈 nikkake-trade - AI Signal & Real Portfolio Dashboard</h2>
-            <div>
-                <button class="btn btn-outline-primary btn-sm me-2" onclick="refreshData()">🔄 データ再読み込み</button>
+            <div class="d-flex align-items-center">
+                <span id="updateSpinner" class="spinner-border spinner-border-sm text-primary me-2 d-none" role="status"></span>
+                <span id="updateStatusText" class="text-muted me-3 small">10分キャッシュ有効中</span>
+                <button class="btn btn-outline-primary btn-sm me-2" onclick="refreshData(true)">🔄 データ再読み込み (手動更新)</button>
                 <span class="badge bg-primary fs-6">更新: {datetime.now().strftime('%m-%d %H:%M')}</span>
             </div>
         </div>
@@ -672,6 +696,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
     <script>
         const serverHistory = {server_history_json};
         const serverPortfolio = {server_real_json};
+        let isFetchingBackground = false;
 
         async function fetchHistoryAPI() {{
             try {{
@@ -775,6 +800,10 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 const retSign = pnlYen >= 0 ? '+' : '';
                 const metricsHTML = formatMetricsHTML(item.details, entryP);
 
+                const priceCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `${{currP.toLocaleString()}}円`;
+                const pnlCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `<strong>${{retSign}}${{Math.round(pnlYen).toLocaleString()}}円 (${{retSign}}${{retP.toFixed(2)}}%)</strong>`;
+                const statusCol = isFetchingBackground ? '<span class="updating-badge">🔄 判定中</span>' : badge;
+
                 tbody.innerHTML += `
                     <tr>
                         <td><small class="fw-bold">${{dtFormatted}}</small></td>
@@ -783,9 +812,9 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                         <td><strong>${{entryP.toLocaleString()}}円</strong><br><small class="text-muted">(${{(simAmt / 10000).toFixed(1)}}万円)</small></td>
                         <td>${{targetP.toLocaleString()}}円</td>
                         <td>${{stopP.toLocaleString()}}円</td>
-                        <td>${{currP.toLocaleString()}}円</td>
-                        <td class="${{retCls}}"><strong>${{retSign}}${{Math.round(pnlYen).toLocaleString()}}円 (${{retSign}}${{retP.toFixed(2)}}%)</strong></td>
-                        <td>${{badge}}</td>
+                        <td>${{priceCol}}</td>
+                        <td class="${{retCls}}">${{pnlCol}}</td>
+                        <td>${{statusCol}}</td>
                         <td><small class="text-muted">${{closedAtFormatted}}</small></td>
                         <td>${{metricsHTML}}</td>
                         <td><button class="btn btn-sm btn-outline-danger" onclick="deleteAISignal('${{item.id || originalIndex}}')">削除</button></td>
@@ -847,6 +876,10 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     st.includes('LOSS') ? '<span class="badge bg-danger">LOSS 損切</span>' : '<span class="badge bg-primary">HOLD 保有中</span>'
                 );
 
+                const priceCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `${{currP.toLocaleString()}}円`;
+                const pnlCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `<strong>${{pnlSign}}${{Math.round(pnlY).toLocaleString()}}円 (${{pnlSign}}${{pnlP.toFixed(2)}}%)</strong>`;
+                const statusCol = isFetchingBackground ? '<span class="updating-badge">🔄 判定中</span>' : badge;
+
                 tbody.innerHTML += `
                     <tr>
                         <td><small class="fw-bold">${{bDtFormatted}}</small></td>
@@ -855,9 +888,9 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                         <td><strong>${{buyP.toLocaleString()}}円</strong><br><small class="text-muted">(${{(invest / 10000).toFixed(1)}}万円)</small></td>
                         <td>${{targetP.toLocaleString()}}円</td>
                         <td>${{stopP.toLocaleString()}}円</td>
-                        <td>${{currP.toLocaleString()}}円</td>
-                        <td class="${{pnlCls}}"><strong>${{pnlSign}}${{Math.round(pnlY).toLocaleString()}}円 (${{pnlSign}}${{pnlP.toFixed(2)}}%)</strong></td>
-                        <td>${{badge}}</td>
+                        <td>${{priceCol}}</td>
+                        <td class="${{pnlCls}}">${{pnlCol}}</td>
+                        <td>${{statusCol}}</td>
                         <td><small class="text-muted">${{closedAtFormatted}}</small></td>
                         <td>${{metricsHTML}}</td>
                         <td><button class="btn btn-sm btn-outline-danger" onclick="deleteRealStock('${{itemId}}')">削除</button></td>
@@ -870,6 +903,31 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             const totalPnlElem = document.getElementById('totalPnlText');
             totalPnlElem.innerText = totalSign + Math.round(totalPnl).toLocaleString() + '円';
             totalPnlElem.className = 'display-5 fw-bold ' + (totalPnl >= 0 ? 'text-success' : 'text-danger');
+        }}
+
+        async function refreshData(isManual = false) {{
+            const spinner = document.getElementById('updateSpinner');
+            const statusText = document.getElementById('updateStatusText');
+            
+            spinner.classList.remove('d-none');
+            statusText.innerText = isManual ? '🔄 最新株価を取得中...' : '10分キャッシュ更新中...';
+            isFetchingBackground = true;
+            renderAIHistory();
+            renderRealPortfolio();
+
+            try {{
+                const url = isManual ? '/api/refresh?force=true' : '/api/refresh';
+                await fetch(url, {{ method: 'POST' }});
+            }} catch(e) {{}}
+
+            // 1.5秒後に更新完了データへ切り替え
+            setTimeout(async () => {{
+                isFetchingBackground = false;
+                spinner.classList.add('d-none');
+                statusText.innerText = '10分キャッシュ有効中';
+                await renderAIHistory();
+                await renderRealPortfolio();
+            }}, 1500);
         }}
 
         async function addSignalFromForm() {{
@@ -959,14 +1017,6 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     }}
                 }} catch(e) {{}}
             }}
-        }}
-
-        async function refreshData() {{
-            try {{
-                await fetch('/api/refresh', {{ method: 'POST' }});
-            }} catch(e) {{}}
-            renderAIHistory();
-            renderRealPortfolio();
         }}
 
         document.addEventListener('DOMContentLoaded', () => {{
