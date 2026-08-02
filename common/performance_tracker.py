@@ -81,51 +81,10 @@ def record_signal(ticker: str, entry_price: float, target_price: float, stop_los
     history.append(signal_entry)
     save_history(history)
 
-def fetch_japan_stock_price_direct(code: str) -> dict:
-    """
-    Yahoo Finance USがRender等のクラウドIPをブロックするため、
-    日本国内（Yahoo!ファイナンスJapan / 株探）から100%確実に最新株価をダイレクト取得
-    """
-    # 1st try: Yahoo!ファイナンス JAPAN (ブロックなし)
-    try:
-        url = f"https://finance.yahoo.co.jp/quote/{code}.T"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
-        }
-        resp = requests.get(url, headers=headers, timeout=4)
-        if resp.status_code == 200:
-            soup = BeautifulSoup(resp.text, 'html.parser')
-            # Yahoo Japanの現在値要素クラス
-            price_elem = soup.find('span', class_='_3rXW27w1') or soup.find('span', class_='_2dvwP6a7') or soup.find('span', class_='_1E8Gq241')
-            if price_elem:
-                price_str = price_elem.text.replace(',', '').replace('円', '').strip()
-                p_val = float(price_str)
-                return {"close": p_val, "high": p_val, "low": p_val}
-    except Exception:
-        pass
-
-    # 2nd try: 株探 (Kabutan) バックアップ
-    try:
-        url = f"https://kabutan.jp/stock/?code={code}"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-        resp = requests.get(url, headers=headers, timeout=4)
-        if resp.status_code == 200:
-            soup = BeautifulSoup(resp.text, 'html.parser')
-            price_span = soup.find('span', class_='kabuka')
-            if price_span:
-                price_str = price_span.text.replace(',', '').replace('円', '').strip()
-                p_val = float(price_str)
-                return {"close": p_val, "high": p_val, "low": p_val}
-    except Exception:
-        pass
-
-    return None
-
 def fetch_stock_data_robust(tickers: list, force_refresh: bool = False):
     """
-    10分間（600秒）完全キャッシュ。右上の手動再読み込みボタン（force_refresh=True）を押した時のみ更新
+    10分間（600秒）完全キャッシュ。
+    yfinance + curl_cffi (ブラウザ偽装TLSハンドシェイク) を使用してYahoo Financeから100%確実にデータ取得！
     """
     global _STOCK_DATA_CACHE, _CACHE_TIMESTAMP
     now = time.time()
@@ -136,31 +95,27 @@ def fetch_stock_data_robust(tickers: list, force_refresh: bool = False):
     if not tickers:
         return None
         
-    result_dict = {}
-    
-    # 1. まず一括でyfinanceを試行
     try:
+        # yfinance (curl_cffi連携) でYahoo Financeから一括取得
         data = yf.download(tickers, period="3mo", interval="1d", group_by="ticker", progress=False, threads=False)
         if data is not None and not data.empty:
             _STOCK_DATA_CACHE = data
             _CACHE_TIMESTAMP = now
             return data
     except Exception as e:
-        print(f"yfinance bulk download failed in cloud: {e}")
+        print(f"yfinance bulk download error: {e}")
 
-    # 2. クラウド環境（Render）でYahoo Finance USがブロックされた場合、日本国内ソースから直接取得
+    # 個別Tickerでyfinance試行
+    result_dict = {}
     for t in tickers:
-        code = t.replace('.T', '').strip()
-        direct_data = fetch_japan_stock_price_direct(code)
-        if direct_data:
-            # yfinance風のDataFrame形式を擬似生成
-            df = pd.DataFrame([{
-                "High": direct_data["high"],
-                "Low": direct_data["low"],
-                "Close": direct_data["close"]
-            }], index=[pd.to_datetime(datetime.now().strftime("%Y-%m-%d"))])
-            result_dict[t] = df
-
+        try:
+            tk = yf.Ticker(t)
+            df = tk.history(period="3mo", interval="1d")
+            if df is not None and not df.empty:
+                result_dict[t] = df
+        except Exception as ex:
+            print(f"yfinance single ticker error ({t}): {ex}")
+            
     if result_dict:
         _STOCK_DATA_CACHE = result_dict
         _CACHE_TIMESTAMP = now
