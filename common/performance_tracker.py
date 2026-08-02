@@ -45,7 +45,6 @@ def record_signal(ticker: str, entry_price: float, target_price: float, stop_los
     today_date = datetime.now().strftime("%Y-%m-%d")
     code = ticker.replace('.T', '').strip()
     
-    # 同一日の同一時間帯重複防止
     for item in history:
         if item.get("ticker_code") == code and item.get("date", "").startswith(today_date):
             return
@@ -55,7 +54,7 @@ def record_signal(ticker: str, entry_price: float, target_price: float, stop_los
     
     signal_entry = {
         "id": f"{code}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-        "date": now_str, # 日時（時間まで明記）
+        "date": now_str,
         "ticker_code": code,
         "name": name,
         "entry_price": entry_price,
@@ -64,7 +63,7 @@ def record_signal(ticker: str, entry_price: float, target_price: float, stop_los
         "stop_loss_price": stop_loss_price,
         "score": score,
         "status": "OPEN",
-        "closed_at": "-", # 利確・損切り決定日時
+        "closed_at": "-",
         "current_price": entry_price,
         "max_price": entry_price,
         "min_price": entry_price,
@@ -127,8 +126,6 @@ def update_signal_performance():
             item["min_price"] = min(item.get("min_price", entry_p), low_price)
             item["return_pct"] = round(((latest_close - entry_p) / entry_p) * 100, 2)
             
-            # 同日内に両方到達する等、高ボラティリティ時の優先度ロジック
-            # リスク管理の原則：同日高安両方到達時は資金保護のため保守的に「損切り」を最優先判定
             if low_price <= stop_p:
                 item["status"] = "LOSS"
                 item["return_pct"] = round(((stop_p - entry_p) / entry_p) * 100, 2)
@@ -196,11 +193,11 @@ def generate_weekly_report() -> str:
         closed_str = item.get("closed_at", "-")
         
         if st == "WIN":
-            text += f"・🎯 **{name}** (買付日時: {dt_str} / 株価: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円) ➔ **利確達成 🎉 ({closed_str} / {ret:+.1f}%)**\n"
+            text += f"・🎯 **{name}** (推奨日時: {dt_str} / 株価: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円) ➔ **利確達成 🎉 ({closed_str} / {ret:+.1f}%)**\n"
         elif st == "LOSS":
-            text += f"・🛑 **{name}** (買付日時: {dt_str} / 株価: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円) ➔ **損切り撤退 🛑 ({closed_str} / {ret:+.1f}%)**\n"
+            text += f"・🛑 **{name}** (推奨日時: {dt_str} / 株価: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円) ➔ **損切り撤退 🛑 ({closed_str} / {ret:+.1f}%)**\n"
         else:
-            text += f"・👀 **{name}** (買付日時: {dt_str} / 株価: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円 / {ret:+.1f}% 監視中)\n"
+            text += f"・👀 **{name}** (推奨日時: {dt_str} / 株価: {entry:,.1f}円 / 100株 {sim_a/10000:.1f}万円 / {ret:+.1f}% 監視中)\n"
             
     if real_portfolio:
         text += "\n💼 **【My リアル購入ポートフォリオ実効損益】**\n"
@@ -285,7 +282,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 <div class="card bg-white p-4 card-stat">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="card-title mb-0">📋 AI推奨シグナル実測追跡リスト</h5>
-                        <small class="text-muted">買付日時〜利確/損切り決着日時まで完全実測追跡</small>
+                        <small class="text-muted">推奨日時〜利確/損切り決着日時まで完全実測追跡</small>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
@@ -316,12 +313,9 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             <div class="tab-pane fade" id="real-panel" role="tabpanel">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h4>💼 実際に購入した銘柄リスト</h4>
-                    <div>
-                        <button class="btn btn-outline-secondary me-2" onclick="copyPortfolioJSON()">📋 登録データをコピー</button>
-                        <button class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#addStockModal">
-                            ➕ 画面から購入銘柄を即時追加
-                        </button>
-                    </div>
+                    <button class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#addStockModal">
+                        ➕ 画面から購入銘柄を即時追加
+                    </button>
                 </div>
 
                 <div class="row mb-4">
@@ -601,16 +595,6 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 portfolio.splice(index, 1);
                 saveLocalPortfolio(portfolio);
             }}
-        }}
-
-        function copyPortfolioJSON() {{
-            const portfolio = getLocalPortfolio();
-            const str = JSON.stringify(portfolio, null, 2);
-            navigator.clipboard.writeText(str).then(() => {{
-                alert('現在画面で追加・編集したポートフォリオのJSONコードをコピーしました！');
-            }}).catch(err => {{
-                prompt('以下をコピーしてください:', str);
-            }});
         }}
 
         document.addEventListener('DOMContentLoaded', () => {{
