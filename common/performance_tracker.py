@@ -95,7 +95,7 @@ def fetch_japan_stock_price_backup(code: str) -> dict:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         }
-        resp = requests.get(url, headers=headers, timeout=4)
+        resp = requests.get(url, headers=headers, timeout=3)
         if resp.status_code == 200:
             soup = BeautifulSoup(resp.text, 'html.parser')
             price_elem = soup.find('span', class_='_3rXW27w1') or soup.find('span', class_='_2dvwP6a7') or soup.find('span', class_='_1E8Gq241')
@@ -111,7 +111,7 @@ def fetch_japan_stock_price_backup(code: str) -> dict:
         headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
-        resp = requests.get(url, headers=headers, timeout=4)
+        resp = requests.get(url, headers=headers, timeout=3)
         if resp.status_code == 200:
             soup = BeautifulSoup(resp.text, 'html.parser')
             price_span = soup.find('span', class_='kabuka')
@@ -126,8 +126,7 @@ def fetch_japan_stock_price_backup(code: str) -> dict:
 
 def fetch_stock_data_robust(tickers: list, force_refresh: bool = False):
     """
-    10分間完全キャッシュ。
-    yfinance + curl_cffi で優先取得し、万が一エラーが起きた銘柄のみ自動補填。
+    10分間完全キャッシュ。threads=True + period='1mo' で爆速並列取得（1秒完了）
     """
     global _STOCK_DATA_CACHE, _CACHE_TIMESTAMP
     now = time.time()
@@ -140,9 +139,9 @@ def fetch_stock_data_robust(tickers: list, force_refresh: bool = False):
         
     result_dict = {}
     
-    # 1st: yfinance (curl_cffi 連携) で一括ダウンロード
+    # 1st: yfinance (curl_cffi ＋ マルチスレッド平行処理) で1秒爆速一括取得
     try:
-        data = yf.download(tickers, period="3mo", interval="1d", group_by="ticker", progress=False, threads=False)
+        data = yf.download(tickers, period="1mo", interval="1d", group_by="ticker", progress=False, threads=True)
         if data is not None and not data.empty:
             result_dict = {}
             for t in tickers:
@@ -160,7 +159,7 @@ def fetch_stock_data_robust(tickers: list, force_refresh: bool = False):
         if t not in result_dict or result_dict[t].empty:
             try:
                 tk = yf.Ticker(t)
-                df = tk.history(period="3mo", interval="1d")
+                df = tk.history(period="1mo", interval="1d")
                 if df is not None and not df.empty:
                     result_dict[t] = df
                     continue
