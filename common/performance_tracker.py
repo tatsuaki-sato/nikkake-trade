@@ -15,6 +15,14 @@ try:
 except ImportError:
     print("⚠️ curl_cffi が見つかりません。yfinance がブロックされる可能性があります")
 
+# DB or ファイル を自動判定
+_USE_DB = bool(os.environ.get("DATABASE_URL", ""))
+if _USE_DB:
+    from common.database import (
+        db_load_history, db_save_history,
+        db_load_portfolio, db_save_portfolio
+    )
+
 HISTORY_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "signal_history.json")
 REAL_PORTFOLIO_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "real_portfolio.json")
 DASHBOARD_HTML = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dashboard.html")
@@ -25,6 +33,12 @@ _CACHE_TIMESTAMP = 0
 CACHE_TTL_SECONDS = 600  # 10分キャッシュ
 
 def load_history() -> list:
+    """DBが使える場合はDB、なければJSONファイルにフォールバック"""
+    if _USE_DB:
+        try:
+            return db_load_history()
+        except Exception as e:
+            print(f"DB load_history fallback: {e}")
     if not os.path.exists(HISTORY_FILE):
         return []
     try:
@@ -34,11 +48,24 @@ def load_history() -> list:
         return []
 
 def save_history(history: list):
+    """DBが使える場合はDB、なければJSONファイルにフォールバック"""
+    if _USE_DB:
+        try:
+            db_save_history(history)
+            return
+        except Exception as e:
+            print(f"DB save_history fallback: {e}")
     os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         json.dump(history, f, ensure_ascii=False, indent=2)
 
 def load_real_portfolio() -> list:
+    """DBが使える場合はDB、なければJSONファイルにフォールバック"""
+    if _USE_DB:
+        try:
+            return db_load_portfolio()
+        except Exception as e:
+            print(f"DB load_portfolio fallback: {e}")
     if not os.path.exists(REAL_PORTFOLIO_FILE):
         return []
     try:
@@ -48,6 +75,13 @@ def load_real_portfolio() -> list:
         return []
 
 def save_real_portfolio(portfolio: list):
+    """DBが使える場合はDB、なければJSONファイルにフォールバック"""
+    if _USE_DB:
+        try:
+            db_save_portfolio(portfolio)
+            return
+        except Exception as e:
+            print(f"DB save_portfolio fallback: {e}")
     os.makedirs(os.path.dirname(REAL_PORTFOLIO_FILE), exist_ok=True)
     with open(REAL_PORTFOLIO_FILE, "w", encoding="utf-8") as f:
         json.dump(portfolio, f, ensure_ascii=False, indent=2)
