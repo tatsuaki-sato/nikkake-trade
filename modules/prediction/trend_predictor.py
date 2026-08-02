@@ -6,6 +6,7 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from common.notifier import notify
+from common.cache_manager import get_cached_item, set_cached_item
 from modules.post_analysis.advanced_scraper import get_x_sentiment_score, get_kabutan_news, get_market_trending_themes, get_stock_financial_perks
 from modules.post_analysis.quant_analyzer import evaluate_quant_factors
 
@@ -15,8 +16,17 @@ TARGET_TICKERS = [
 ]
 BENCHMARK_TICKER = "1321.T"
 
+def get_cached_financial_perks(ticker: str) -> dict:
+    cache_key = f"perks_{ticker}"
+    cached = get_cached_item(cache_key, ttl_seconds=604800)
+    if cached:
+        return cached
+    data = get_stock_financial_perks(ticker)
+    set_cached_item(cache_key, data)
+    return data
+
 def run_predictor():
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] クオンツ未来予測モジュール起動...")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] グローバル・クオンツ未来予測モジュール起動...")
     
     tickers_to_fetch = TARGET_TICKERS + [BENCHMARK_TICKER]
     try:
@@ -39,11 +49,12 @@ def run_predictor():
             score = quant_result['total_score']
             
             is_quant_prediction = "ボラティリティ・スクイーズ解除" in quant_result['details'].get('Volatility_Squeeze', '') or \
-                                  "固有モメンタム極めて強力" in quant_result['details'].get('Residual_Momentum', '')
+                                  "固有モメンタム極めて強力" in quant_result['details'].get('Residual_Momentum', '') or \
+                                  "EDINET_Disclosure" in quant_result['details']
             
             if score >= 60 and is_quant_prediction:
                 news = get_kabutan_news(ticker)
-                financial_perks = get_stock_financial_perks(ticker)
+                financial_perks = get_cached_financial_perks(ticker)
                 hit_list.append({
                     "銘柄コード": ticker.replace('.T', ''),
                     "終値": stock_df.iloc[-1]['Close'],
@@ -59,14 +70,14 @@ def run_predictor():
 
     notify_text = ""
     if len(hit_list) > 0:
-        notify_text += f"🔮 **【クオンツ未来予測】スクイーズ解除・固有モメンタム上昇 厳選銘柄**\n\n"
+        notify_text += f"🔮 **【グローバル・クオンツ未来予測】ブレイクアウト・EDINET開示銘柄**\n\n"
         hit_list.sort(key=lambda x: x['スコア'], reverse=True)
         for hit in hit_list:
             tv_link = f"https://jp.tradingview.com/chart/?symbol=TSE%3A{hit['銘柄コード']}"
             notify_text += f"🚀 **{hit['銘柄コード']}** (クオンツスコア: **{hit['スコア']}点**)\n"
             notify_text += f"・チャート: {tv_link}\n"
             notify_text += f"・💰 **配当利回り**: {hit['配当利回り']} / 🎁 **株主優待**: {hit['株主優待']}\n"
-            notify_text += f"・**【数理シグナル要因】**\n"
+            notify_text += f"・**【数理＆マクロシグナル要因】**\n"
             for k, v in hit['詳細'].items():
                 if "[0点]" not in v:
                     notify_text += f"  - {v}\n"
@@ -77,13 +88,13 @@ def run_predictor():
         notify(notify_text)
     else:
         theme_details = get_market_trending_themes()
-        notify_text = "🔮 **【クオンツ未来予測】本日の市場トレンド＆関連銘柄情報**\n"
+        notify_text = "🔮 **【グローバル・クオンツ未来予測】本日の市場トレンド＆関連銘柄**\n"
         notify_text += "本日ブレイクアウト条件を満たす特定銘柄は検出されませんでしたが、現在市場で最も関心を集めている注目テーマと代表的な関連株は以下の通りです：\n\n"
         notify_text += "🌟 **【市場注目テーマ TOP 5 ＆ 関連代表株】**\n"
         for i, item in enumerate(theme_details[:5], 1):
             stocks_str = ", ".join(item['stocks'])
             notify_text += f"{i}. **{item['theme']}**\n   └ 関連代表銘柄: {stocks_str}\n"
-        notify_text += "\n※テーマ関連銘柄の資金流入とブレイクアウト兆候を全自動で継続監視します。"
+        notify_text += "\n※米国マクロ環境・EDINET開示を全自動で継続監視しています。"
         
         notify(notify_text)
 

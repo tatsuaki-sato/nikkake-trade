@@ -1,0 +1,54 @@
+{
+  "global_macro_data": {
+    "timestamp": 1785675053.7665029,
+    "value": {
+      "sox_change": 0.071572597890035,
+      "usdjpy_change": -1.7373908492607892,
+      "vix_level": 15.989999771118164,
+      "us10y_level": 4.744999885559082,
+      "market_regime": "RISK_ON (追い風)"
+    }
+  },
+  "edinet_7203": {
+    "timestamp": 1785675054.088477,
+    "value": {
+      "has_5percent_report": false,
+      "details": ""
+    }
+  },
+  "edinet_9984": {
+    "timestamp": 1785675054.8809888,
+    "value": {
+      "has_5percent_report": false,
+      "details": ""
+    }
+  },
+  "edinet_6920": {
+    "timestamp": 1785675055.8590589,
+    "value": {
+      "has_5percent_report": false,
+      "details": ""
+    }
+  },
+  "edinet_8035": {
+    "timestamp": 1785675057.349927,
+    "value": {
+      "has_5percent_report": false,
+      "details": ""
+    }
+  },
+  "edinet_6861": {
+    "timestamp": 1785675058.240402,
+    "value": {
+      "has_5percent_report": false,
+      "details": ""
+    }
+  },
+  "edinet_7974": {
+    "timestamp": 1785675059.059635,
+    "value": {
+      "has_5percent_report": false,
+      "details": ""
+    }
+  }
+}
