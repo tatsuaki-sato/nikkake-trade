@@ -175,7 +175,7 @@ def generate_weekly_report() -> str:
     real_portfolio = load_real_portfolio()
     
     if not history:
-        return "🏆 **【AIトレード勝率トラッキング】**\n現在、追跡中の過去推奨シグナルデータはありません。"
+        return "🏆 **【nikkake-trade 勝率トラッキング】**\n現在、追跡中の過去推奨シグナルデータはありません。"
 
     wins = [i for i in history if i.get("status") == "WIN"]
     losses = [i for i in history if i.get("status") == "LOSS"]
@@ -186,7 +186,7 @@ def generate_weekly_report() -> str:
     total_return_pct = sum([i.get("return_pct", 0) for i in history if i.get("status") in ["WIN", "LOSS"]])
     total_pnl_yen = sum([i.get("pnl_yen", 0) for i in history if i.get("status") in ["WIN", "LOSS"]])
     
-    text = "🏆 **【AIトレード勝率 ＆ 実取引パフォーマンス通信】**\n"
+    text = "🏆 **【nikkake-trade 勝率 ＆ 実取引通信】**\n"
     text += f"AIが過去に推奨した全シグナルの実測検証結果です。\n\n"
     text += f"📊 **通算対戦成績**: {len(wins)}勝 {len(losses)}敗 ({len(opens)}件 監視中)\n"
     text += f"🎯 **通算勝率**: **{win_rate:.1f}%**\n"
@@ -239,7 +239,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>trade - AI Signal & Real Portfolio Dashboard</title>
+    <title>nikkake-trade - AI Signal & Real Portfolio Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <style>
@@ -251,7 +251,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 <body>
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>🤖 trade - AI Signal & Real Portfolio Dashboard</h2>
+            <h2>📈 nikkake-trade - AI Signal & Real Portfolio</h2>
             <div>
                 <button class="btn btn-outline-primary btn-sm me-2" onclick="refreshData()">🔄 データ再読み込み</button>
                 <span class="badge bg-primary fs-6">更新: {datetime.now().strftime('%m-%d %H:%M')}</span>
@@ -613,7 +613,6 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 }}
             }} catch(e) {{}}
 
-            // Fallback for non-server environment
             const newItem = {{
                 id: 'user_' + Date.now(),
                 ticker, name: name || ticker, buy_date: buyDate, buy_price: buyPrice, shares, current_price: buyPrice

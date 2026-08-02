@@ -15,7 +15,7 @@ from common.performance_tracker import (
 )
 from common.stock_names import get_company_name
 
-app = FastAPI(title="trade - AI Signal & Real Portfolio Web App")
+app = FastAPI(title="nikkake-trade - AI Signal & Real Portfolio Web App")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_FILE = os.path.join(BASE_DIR, "index.html")
@@ -36,7 +36,7 @@ def get_dashboard():
     if os.path.exists(INDEX_FILE):
         with open(INDEX_FILE, "r", encoding="utf-8") as f:
             return f.read()
-    return "<h1>trade Dashboard File Not Found</h1>"
+    return "<h1>nikkake-trade Dashboard File Not Found</h1>"
 
 @app.get("/api/history")
 def get_api_history():
@@ -54,7 +54,6 @@ def delete_api_history(signal_id: str):
     history = load_history()
     new_history = [item for item in history if item.get("id") != signal_id]
     if len(new_history) == len(history):
-        # Index or Ticker fallback search
         try:
             idx = int(signal_id)
             if 0 <= idx < len(history):
@@ -100,7 +99,6 @@ def add_api_portfolio(stock: RealStockInput):
     portfolio.append(new_item)
     save_real_portfolio(portfolio)
     
-    # 全データと最新株価の即時更新
     history = load_history()
     update_signal_performance()
     return {"status": "success", "added": new_item}
@@ -135,5 +133,5 @@ def refresh_api_data():
     return {"status": "success", "time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 if __name__ == "__main__":
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] trade FastAPI サーバー起動: http://localhost:8000")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] nikkake-trade FastAPI サーバー起動: http://localhost:8000")
     uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
