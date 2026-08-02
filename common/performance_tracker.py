@@ -41,7 +41,7 @@ def save_real_portfolio(portfolio: list):
 
 def record_signal(ticker: str, entry_price: float, target_price: float, stop_loss_price: float, score: int, details: dict):
     history = load_history()
-    now_str = datetime.now().strftime("%m-%d %H:%M") # 年なし、月日 時分 (MM-DD HH:MM)
+    now_str = datetime.now().strftime("%m-%d %H:%M")
     today_date = datetime.now().strftime("%Y-%m-%d")
     code = ticker.replace('.T', '').strip()
     
@@ -99,10 +99,8 @@ def update_signal_performance():
     now_time_str = datetime.now().strftime("%m-%d %H:%M")
 
     for item in history:
-        # 年を削除したフォーマット (例: 08-02 23:12)
         dt_val = item.get("date", "")
         if " " in dt_val and len(dt_val.split()[0].split("-")) == 3:
-            # 2026-08-02 15:30 -> 08-02 15:30
             parts = dt_val.split()
             ymd = parts[0].split("-")
             item["date"] = f"{ymd[1]}-{ymd[2]} {parts[1]}"
@@ -131,7 +129,6 @@ def update_signal_performance():
             item["return_pct"] = round(((latest_close - entry_p) / entry_p) * 100, 2)
             item["pnl_yen"] = round((latest_close - entry_p) * 100, 0)
             
-            # WIN / LOSS の決着日時を自動セット
             if item.get("status") == "OPEN":
                 if low_price <= stop_p:
                     item["status"] = "LOSS"
@@ -144,7 +141,6 @@ def update_signal_performance():
                     item["pnl_yen"] = round((target_p - entry_p) * 100, 0)
                     item["closed_at"] = now_time_str
             else:
-                # 既に WIN / LOSS 確定済みで closed_at が無ければセット
                 if not item.get("closed_at") or item.get("closed_at") == "-":
                     item["closed_at"] = now_time_str
         except Exception:
@@ -256,7 +252,10 @@ def generate_html_dashboard(history: list, real_portfolio: list):
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>🤖 trade - AI Signal & Real Portfolio Dashboard</h2>
-            <span class="badge bg-primary fs-6">更新: {datetime.now().strftime('%m-%d %H:%M')}</span>
+            <div>
+                <button class="btn btn-outline-primary btn-sm me-2" onclick="refreshData()">🔄 データ再読み込み</button>
+                <span class="badge bg-primary fs-6">更新: {datetime.now().strftime('%m-%d %H:%M')}</span>
+            </div>
         </div>
 
         <ul class="nav nav-tabs mb-4 fs-5" id="myTab" role="tablist">
@@ -315,6 +314,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                                     <th>100株損益額 (%)</th>
                                     <th>ステータス</th>
                                     <th>決着日時</th>
+                                    <th>操作</th>
                                 </tr>
                             </thead>
                             <tbody id="aiTableBody">
@@ -419,36 +419,25 @@ def generate_html_dashboard(history: list, real_portfolio: list):
     <script>
         const serverHistory = {server_history_json};
         const serverPortfolio = {server_real_json};
-        
-        function getLocalHistory() {{
-            const stored = localStorage.getItem('user_ai_history');
-            if (stored) {{
-                try {{ return JSON.parse(stored); }} catch(e) {{}}
-            }}
+
+        async function fetchHistoryAPI() {{
+            try {{
+                const res = await fetch('/api/history');
+                if (res.ok) return await res.json();
+            }} catch(e) {{}}
             return serverHistory;
         }}
 
-        function saveLocalHistory(data) {{
-            localStorage.setItem('user_ai_history', JSON.stringify(data));
-            renderAIHistory();
-        }}
-        
-        function getLocalPortfolio() {{
-            const stored = localStorage.getItem('user_real_portfolio');
-            if (stored) {{
-                try {{ return JSON.parse(stored); }} catch(e) {{}}
-            }}
+        async function fetchPortfolioAPI() {{
+            try {{
+                const res = await fetch('/api/portfolio');
+                if (res.ok) return await res.json();
+            }} catch(e) {{}}
             return serverPortfolio;
-        }}
-        
-        function saveLocalPortfolio(data) {{
-            localStorage.setItem('user_real_portfolio', JSON.stringify(data));
-            renderRealPortfolio();
         }}
 
         function formatNoYear(dtStr) {{
             if (!dtStr || dtStr === '-') return '-';
-            // 2026-08-02 15:30 -> 08-02 15:30
             if (dtStr.length >= 10 && dtStr.includes('-')) {{
                 const parts = dtStr.split(' ');
                 const ymd = parts[0].split('-');
@@ -460,8 +449,8 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             return dtStr;
         }}
 
-        function renderAIHistory() {{
-            const history = getLocalHistory();
+        async function renderAIHistory() {{
+            const history = await fetchHistoryAPI();
             const tbody = document.getElementById('aiTableBody');
             tbody.innerHTML = '';
 
@@ -472,7 +461,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             let totalPnlYen = 0;
 
             if (!history || history.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">現在、実測推奨シグナルデータはありません。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted">現在、実測推奨シグナルデータはありません。</td></tr>';
                 document.getElementById('aiWinRateText').innerText = '0.0%';
                 document.getElementById('aiWinLossText').innerText = '0勝 0敗';
                 document.getElementById('aiReturnText').innerText = '+0円';
@@ -481,7 +470,8 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 return;
             }}
 
-            history.slice().reverse().forEach((item) => {{
+            history.slice().reverse().forEach((item, revIndex) => {{
+                const originalIndex = history.length - 1 - revIndex;
                 const st = item.status;
                 const entryP = parseFloat(item.entry_price || 0);
                 const targetP = parseFloat(item.target_price || 0);
@@ -492,12 +482,12 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 
                 let pnlYen = item.pnl_yen !== undefined ? parseFloat(item.pnl_yen) : (currP - entryP) * 100;
                 if (st === 'WIN') {{ pnlYen = (targetP - entryP) * 100; }}
-                else if (st === 'LOSS') {{ pnlYen = (stopP - entry_price) * 100; }}
+                else if (st === 'LOSS') {{ pnlYen = (stopP - entryP) * 100; }}
 
                 const dtFormatted = formatNoYear(item.date);
                 let closedAtFormatted = formatNoYear(item.closed_at);
                 if ((st === 'WIN' || st === 'LOSS') && closedAtFormatted === '-') {{
-                    closedAtFormatted = dtFormatted; // 確定している場合は日時を表示
+                    closedAtFormatted = dtFormatted;
                 }}
                 
                 if (st === 'WIN') {{ wins++; totalClosed++; totalReturnPct += retP; totalPnlYen += pnlYen; }}
@@ -523,6 +513,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                         <td class="${{retCls}}"><strong>${{retSign}}${{Math.round(pnlYen).toLocaleString()}}円 (${{retSign}}${{retP.toFixed(2)}}%)</strong></td>
                         <td>${{badge}}</td>
                         <td><small class="text-muted">${{closedAtFormatted}}</small></td>
+                        <td><button class="btn btn-sm btn-outline-danger" onclick="deleteAISignal('${{item.id || originalIndex}}')">削除</button></td>
                     </tr>
                 `;
             }});
@@ -541,8 +532,8 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             document.getElementById('aiOpenCountText').innerText = '監視中: ' + (history.length - totalClosed) + '件';
         }}
 
-        function renderRealPortfolio() {{
-            const portfolio = getLocalPortfolio();
+        async function renderRealPortfolio() {{
+            const portfolio = await fetchPortfolioAPI();
             const tbody = document.getElementById('realPortfolioTableBody');
             tbody.innerHTML = '';
             
@@ -570,6 +561,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 const pnlCls = pnlY >= 0 ? 'text-success' : 'text-danger';
                 const pnlSign = pnlY >= 0 ? '+' : '';
                 const bDtFormatted = formatNoYear(item.buy_date);
+                const itemId = item.id || index;
 
                 tbody.innerHTML += `
                     <tr>
@@ -580,7 +572,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                         <td>${{(invest / 10000).toFixed(1)}}万円</td>
                         <td>${{currP.toLocaleString()}}円</td>
                         <td class="${{pnlCls}}"><strong>${{pnlSign}}${{Math.round(pnlY).toLocaleString()}}円 (${{pnlSign}}${{pnlP.toFixed(2)}}%)</strong></td>
-                        <td><button class="btn btn-sm btn-outline-danger" onclick="deleteRealStock(${{index}})">削除</button></td>
+                        <td><button class="btn btn-sm btn-outline-danger" onclick="deleteRealStock('${{itemId}}')">削除</button></td>
                     </tr>
                 `;
             }});
@@ -592,7 +584,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             totalPnlElem.className = 'display-5 fw-bold ' + (totalPnl >= 0 ? 'text-success' : 'text-danger');
         }}
 
-        function addRealStockFromForm() {{
+        async function addRealStockFromForm() {{
             const ticker = document.getElementById('inputTicker').value.trim();
             let name = document.getElementById('inputName').value.trim();
             const buyPrice = parseFloat(document.getElementById('inputBuyPrice').value);
@@ -605,21 +597,27 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 return;
             }}
 
-            if (!name) {{
-                name = ticker;
-            }}
+            try {{
+                const res = await fetch('/api/portfolio', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ ticker, name, buy_price: buyPrice, shares, buy_date: buyDate }})
+                }});
+                if (res.ok) {{
+                    const modalElem = document.getElementById('addStockModal');
+                    const modal = bootstrap.Modal.getInstance(modalElem);
+                    if (modal) modal.hide();
+                    document.getElementById('addStockForm').reset();
+                    renderRealPortfolio();
+                    return;
+                }}
+            }} catch(e) {{}}
 
+            // Fallback for non-server environment
             const newItem = {{
                 id: 'user_' + Date.now(),
-                ticker: ticker,
-                name: name,
-                buy_date: buyDate,
-                buy_price: buyPrice,
-                shares: shares,
-                current_price: buyPrice,
-                note: '画面から直接登録'
+                ticker, name: name || ticker, buy_date: buyDate, buy_price: buyPrice, shares, current_price: buyPrice
             }};
-
             const portfolio = getLocalPortfolio();
             portfolio.push(newItem);
             saveLocalPortfolio(portfolio);
@@ -627,16 +625,47 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             const modalElem = document.getElementById('addStockModal');
             const modal = bootstrap.Modal.getInstance(modalElem);
             if (modal) modal.hide();
-
             document.getElementById('addStockForm').reset();
         }}
 
-        function deleteRealStock(index) {{
+        async function deleteRealStock(itemId) {{
             if (confirm('この購入銘柄を削除しますか？')) {{
+                try {{
+                    const res = await fetch('/api/portfolio/' + itemId, {{ method: 'DELETE' }});
+                    if (res.ok) {{
+                        renderRealPortfolio();
+                        return;
+                    }}
+                }} catch(e) {{}}
+
                 const portfolio = getLocalPortfolio();
-                portfolio.splice(index, 1);
-                saveLocalPortfolio(portfolio);
+                const newPort = portfolio.filter((item, idx) => item.id !== itemId && idx !== parseInt(itemId));
+                saveLocalPortfolio(newPort);
             }}
+        }}
+
+        async function deleteAISignal(signalId) {{
+            if (confirm('この実測シグナルを消去しますか？')) {{
+                try {{
+                    const res = await fetch('/api/history/' + signalId, {{ method: 'DELETE' }});
+                    if (res.ok) {{
+                        renderAIHistory();
+                        return;
+                    }}
+                }} catch(e) {{}}
+
+                const history = getLocalHistory();
+                const newHist = history.filter((item, idx) => item.id !== signalId && idx !== parseInt(signalId));
+                saveLocalHistory(newHist);
+            }}
+        }}
+
+        async function refreshData() {{
+            try {{
+                await fetch('/api/refresh', {{ method: 'POST' }});
+            }} catch(e) {{}}
+            renderAIHistory();
+            renderRealPortfolio();
         }}
 
         document.addEventListener('DOMContentLoaded', () => {{

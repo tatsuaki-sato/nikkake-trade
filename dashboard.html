@@ -16,7 +16,10 @@
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>🤖 trade - AI Signal & Real Portfolio Dashboard</h2>
-            <span class="badge bg-primary fs-6">更新: 08-02 23:48</span>
+            <div>
+                <button class="btn btn-outline-primary btn-sm me-2" onclick="refreshData()">🔄 データ再読み込み</button>
+                <span class="badge bg-primary fs-6">更新: 08-02 23:54</span>
+            </div>
         </div>
 
         <ul class="nav nav-tabs mb-4 fs-5" id="myTab" role="tablist">
@@ -75,6 +78,7 @@
                                     <th>100株損益額 (%)</th>
                                     <th>ステータス</th>
                                     <th>決着日時</th>
+                                    <th>操作</th>
                                 </tr>
                             </thead>
                             <tbody id="aiTableBody">
@@ -179,36 +183,25 @@
     <script>
         const serverHistory = [{"id": "7203.T_2026-08-02", "date": "08-02 15:30", "ticker": "7203", "entry_price": 3000.0, "target_price": 3270.0, "stop_loss_price": 2820.0, "score": 85, "status": "LOSS", "current_price": 3067.0, "max_price": 3233.0, "min_price": 2708.0, "return_pct": 2.23, "details": {"Residual_Momentum": "テスト"}, "close_date": "2026-08-02", "pnl_yen": 6700.0, "closed_at": "08-02 23:48"}, {"id": "8035_2026-08-02", "date": "08-02 15:30", "ticker_code": "8035", "name": "8035 東京エレクトロン", "entry_price": 55500.0, "sim_amount": 5550000.0, "target_price": 58830.0, "stop_loss_price": 53280.0, "score": 65, "status": "WIN", "current_price": 55500.0, "max_price": 81260.0, "min_price": 48580.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "6920_2026-08-02", "date": "08-02 15:30", "ticker_code": "6920", "name": "6920 レーザーテック", "entry_price": 37910.0, "sim_amount": 3791000.0, "target_price": 40184.6, "stop_loss_price": 36393.6, "score": 65, "status": "WIN", "current_price": 37910.0, "max_price": 54080.0, "min_price": 33200.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "6857_2026-08-02", "date": "08-02 15:30", "ticker_code": "6857", "name": "6857 アドバンテスト", "entry_price": 32500.0, "sim_amount": 3250000.0, "target_price": 34450.0, "stop_loss_price": 31200.0, "score": 65, "status": "LOSS", "current_price": 32500.0, "max_price": 34200.0, "min_price": 24135.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "9984_2026-08-02", "date": "08-02 15:30", "ticker_code": "9984", "name": "9984 ソフトバンクグループ", "entry_price": 5260.0, "sim_amount": 526000.0, "target_price": 5575.6, "stop_loss_price": 5049.6, "score": 65, "status": "WIN", "current_price": 5260.0, "max_price": 6660.0, "min_price": 4500.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "6702_2026-08-02", "date": "08-02 15:30", "ticker_code": "6702", "name": "6702 富士通", "entry_price": 3659.0, "sim_amount": 365900.0, "target_price": 3878.54, "stop_loss_price": 3512.64, "score": 65, "status": "WIN", "current_price": 3659.0, "max_price": 3928.0, "min_price": 3181.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "6701_2026-08-02", "date": "08-02 15:30", "ticker_code": "6701", "name": "6701 NEC", "entry_price": 4740.0, "sim_amount": 474000.0, "target_price": 5024.4, "stop_loss_price": 4550.4, "score": 65, "status": "WIN", "current_price": 4740.0, "max_price": 5104.0, "min_price": 3912.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "7203_2026-08-02", "date": "08-02 15:30", "ticker_code": "7203", "name": "7203 トヨタ自動車", "entry_price": 3067.0, "sim_amount": 306700.0, "target_price": 3251.02, "stop_loss_price": 2944.32, "score": 65, "status": "LOSS", "current_price": 3067.0, "max_price": 3233.0, "min_price": 2708.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "8306_2026-08-02", "date": "08-02 15:30", "ticker_code": "8306", "name": "8306 三菱UFJフィナンシャルG", "entry_price": 3571.0, "sim_amount": 357100.0, "target_price": 3785.26, "stop_loss_price": 3428.16, "score": 65, "status": "WIN", "current_price": 3571.0, "max_price": 3813.0, "min_price": 3207.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "9432_2026-08-02", "date": "08-02 15:30", "ticker_code": "9432", "name": "9432 NTT (日本電信電話)", "entry_price": 152.39999389648438, "sim_amount": 15239.999389648438, "target_price": 161.54399353027344, "stop_loss_price": 146.303994140625, "score": 65, "status": "LOSS", "current_price": 152.4, "max_price": 161.2, "min_price": 142.6, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}];
         const serverPortfolio = [];
-        
-        function getLocalHistory() {
-            const stored = localStorage.getItem('user_ai_history');
-            if (stored) {
-                try { return JSON.parse(stored); } catch(e) {}
-            }
+
+        async function fetchHistoryAPI() {
+            try {
+                const res = await fetch('/api/history');
+                if (res.ok) return await res.json();
+            } catch(e) {}
             return serverHistory;
         }
 
-        function saveLocalHistory(data) {
-            localStorage.setItem('user_ai_history', JSON.stringify(data));
-            renderAIHistory();
-        }
-        
-        function getLocalPortfolio() {
-            const stored = localStorage.getItem('user_real_portfolio');
-            if (stored) {
-                try { return JSON.parse(stored); } catch(e) {}
-            }
+        async function fetchPortfolioAPI() {
+            try {
+                const res = await fetch('/api/portfolio');
+                if (res.ok) return await res.json();
+            } catch(e) {}
             return serverPortfolio;
-        }
-        
-        function saveLocalPortfolio(data) {
-            localStorage.setItem('user_real_portfolio', JSON.stringify(data));
-            renderRealPortfolio();
         }
 
         function formatNoYear(dtStr) {
             if (!dtStr || dtStr === '-') return '-';
-            // 2026-08-02 15:30 -> 08-02 15:30
             if (dtStr.length >= 10 && dtStr.includes('-')) {
                 const parts = dtStr.split(' ');
                 const ymd = parts[0].split('-');
@@ -220,8 +213,8 @@
             return dtStr;
         }
 
-        function renderAIHistory() {
-            const history = getLocalHistory();
+        async function renderAIHistory() {
+            const history = await fetchHistoryAPI();
             const tbody = document.getElementById('aiTableBody');
             tbody.innerHTML = '';
 
@@ -232,7 +225,7 @@
             let totalPnlYen = 0;
 
             if (!history || history.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">現在、実測推奨シグナルデータはありません。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted">現在、実測推奨シグナルデータはありません。</td></tr>';
                 document.getElementById('aiWinRateText').innerText = '0.0%';
                 document.getElementById('aiWinLossText').innerText = '0勝 0敗';
                 document.getElementById('aiReturnText').innerText = '+0円';
@@ -241,7 +234,8 @@
                 return;
             }
 
-            history.slice().reverse().forEach((item) => {
+            history.slice().reverse().forEach((item, revIndex) => {
+                const originalIndex = history.length - 1 - revIndex;
                 const st = item.status;
                 const entryP = parseFloat(item.entry_price || 0);
                 const targetP = parseFloat(item.target_price || 0);
@@ -252,12 +246,12 @@
                 
                 let pnlYen = item.pnl_yen !== undefined ? parseFloat(item.pnl_yen) : (currP - entryP) * 100;
                 if (st === 'WIN') { pnlYen = (targetP - entryP) * 100; }
-                else if (st === 'LOSS') { pnlYen = (stopP - entry_price) * 100; }
+                else if (st === 'LOSS') { pnlYen = (stopP - entryP) * 100; }
 
                 const dtFormatted = formatNoYear(item.date);
                 let closedAtFormatted = formatNoYear(item.closed_at);
                 if ((st === 'WIN' || st === 'LOSS') && closedAtFormatted === '-') {
-                    closedAtFormatted = dtFormatted; // 確定している場合は日時を表示
+                    closedAtFormatted = dtFormatted;
                 }
                 
                 if (st === 'WIN') { wins++; totalClosed++; totalReturnPct += retP; totalPnlYen += pnlYen; }
@@ -283,6 +277,7 @@
                         <td class="${retCls}"><strong>${retSign}${Math.round(pnlYen).toLocaleString()}円 (${retSign}${retP.toFixed(2)}%)</strong></td>
                         <td>${badge}</td>
                         <td><small class="text-muted">${closedAtFormatted}</small></td>
+                        <td><button class="btn btn-sm btn-outline-danger" onclick="deleteAISignal('${item.id || originalIndex}')">削除</button></td>
                     </tr>
                 `;
             });
@@ -301,8 +296,8 @@
             document.getElementById('aiOpenCountText').innerText = '監視中: ' + (history.length - totalClosed) + '件';
         }
 
-        function renderRealPortfolio() {
-            const portfolio = getLocalPortfolio();
+        async function renderRealPortfolio() {
+            const portfolio = await fetchPortfolioAPI();
             const tbody = document.getElementById('realPortfolioTableBody');
             tbody.innerHTML = '';
             
@@ -330,6 +325,7 @@
                 const pnlCls = pnlY >= 0 ? 'text-success' : 'text-danger';
                 const pnlSign = pnlY >= 0 ? '+' : '';
                 const bDtFormatted = formatNoYear(item.buy_date);
+                const itemId = item.id || index;
 
                 tbody.innerHTML += `
                     <tr>
@@ -340,7 +336,7 @@
                         <td>${(invest / 10000).toFixed(1)}万円</td>
                         <td>${currP.toLocaleString()}円</td>
                         <td class="${pnlCls}"><strong>${pnlSign}${Math.round(pnlY).toLocaleString()}円 (${pnlSign}${pnlP.toFixed(2)}%)</strong></td>
-                        <td><button class="btn btn-sm btn-outline-danger" onclick="deleteRealStock(${index})">削除</button></td>
+                        <td><button class="btn btn-sm btn-outline-danger" onclick="deleteRealStock('${itemId}')">削除</button></td>
                     </tr>
                 `;
             });
@@ -352,7 +348,7 @@
             totalPnlElem.className = 'display-5 fw-bold ' + (totalPnl >= 0 ? 'text-success' : 'text-danger');
         }
 
-        function addRealStockFromForm() {
+        async function addRealStockFromForm() {
             const ticker = document.getElementById('inputTicker').value.trim();
             let name = document.getElementById('inputName').value.trim();
             const buyPrice = parseFloat(document.getElementById('inputBuyPrice').value);
@@ -365,21 +361,27 @@
                 return;
             }
 
-            if (!name) {
-                name = ticker;
-            }
+            try {
+                const res = await fetch('/api/portfolio', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticker, name, buy_price: buyPrice, shares, buy_date: buyDate })
+                });
+                if (res.ok) {
+                    const modalElem = document.getElementById('addStockModal');
+                    const modal = bootstrap.Modal.getInstance(modalElem);
+                    if (modal) modal.hide();
+                    document.getElementById('addStockForm').reset();
+                    renderRealPortfolio();
+                    return;
+                }
+            } catch(e) {}
 
+            // Fallback for non-server environment
             const newItem = {
                 id: 'user_' + Date.now(),
-                ticker: ticker,
-                name: name,
-                buy_date: buyDate,
-                buy_price: buyPrice,
-                shares: shares,
-                current_price: buyPrice,
-                note: '画面から直接登録'
+                ticker, name: name || ticker, buy_date: buyDate, buy_price: buyPrice, shares, current_price: buyPrice
             };
-
             const portfolio = getLocalPortfolio();
             portfolio.push(newItem);
             saveLocalPortfolio(portfolio);
@@ -387,16 +389,47 @@
             const modalElem = document.getElementById('addStockModal');
             const modal = bootstrap.Modal.getInstance(modalElem);
             if (modal) modal.hide();
-
             document.getElementById('addStockForm').reset();
         }
 
-        function deleteRealStock(index) {
+        async function deleteRealStock(itemId) {
             if (confirm('この購入銘柄を削除しますか？')) {
+                try {
+                    const res = await fetch('/api/portfolio/' + itemId, { method: 'DELETE' });
+                    if (res.ok) {
+                        renderRealPortfolio();
+                        return;
+                    }
+                } catch(e) {}
+
                 const portfolio = getLocalPortfolio();
-                portfolio.splice(index, 1);
-                saveLocalPortfolio(portfolio);
+                const newPort = portfolio.filter((item, idx) => item.id !== itemId && idx !== parseInt(itemId));
+                saveLocalPortfolio(newPort);
             }
+        }
+
+        async function deleteAISignal(signalId) {
+            if (confirm('この実測シグナルを消去しますか？')) {
+                try {
+                    const res = await fetch('/api/history/' + signalId, { method: 'DELETE' });
+                    if (res.ok) {
+                        renderAIHistory();
+                        return;
+                    }
+                } catch(e) {}
+
+                const history = getLocalHistory();
+                const newHist = history.filter((item, idx) => item.id !== signalId && idx !== parseInt(signalId));
+                saveLocalHistory(newHist);
+            }
+        }
+
+        async function refreshData() {
+            try {
+                await fetch('/api/refresh', { method: 'POST' });
+            } catch(e) {}
+            renderAIHistory();
+            renderRealPortfolio();
         }
 
         document.addEventListener('DOMContentLoaded', () => {
