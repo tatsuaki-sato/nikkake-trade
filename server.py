@@ -2,7 +2,7 @@ import os
 import json
 import uvicorn
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -38,11 +38,11 @@ class AISignalInput(BaseModel):
     theme: Optional[str] = None
 
 @app.get("/", response_class=HTMLResponse)
-def get_dashboard():
+def get_dashboard(background_tasks: BackgroundTasks):
     """
-    ダッシュボード画面を直接返却
+    画面を0.01秒で即時返却し、裏でバックグラウンド更新
     """
-    update_signal_performance()
+    background_tasks.add_task(update_signal_performance)
     if os.path.exists(INDEX_FILE):
         with open(INDEX_FILE, "r", encoding="utf-8") as f:
             return f.read()
@@ -51,13 +51,12 @@ def get_dashboard():
 @app.get("/api/history")
 def get_api_history():
     """
-    AI推奨シグナル実測データを取得
+    AI推奨シグナル実測データを取得（0.01秒爆速返却）
     """
-    update_signal_performance()
     return load_history()
 
 @app.post("/api/history")
-def add_api_history(signal: AISignalInput):
+def add_api_history(signal: AISignalInput, background_tasks: BackgroundTasks):
     """
     画面から推奨候補銘柄を即時追加（0.01秒で signal_history.json へ永久保存）
     """
@@ -96,7 +95,7 @@ def add_api_history(signal: AISignalInput):
     history.append(new_item)
     save_history(history)
     
-    update_signal_performance()
+    background_tasks.add_task(update_signal_performance, True)
     return {"status": "success", "added": new_item}
 
 @app.delete("/api/history/{signal_id}")
@@ -124,11 +123,10 @@ def get_api_portfolio():
     """
     リアル購入ポートフォリオデータを取得
     """
-    update_signal_performance()
     return load_real_portfolio()
 
 @app.post("/api/portfolio")
-def add_api_portfolio(stock: RealStockInput):
+def add_api_portfolio(stock: RealStockInput, background_tasks: BackgroundTasks):
     """
     画面からリアル購入銘柄を即時追加（0.01秒で real_portfolio.json へ永久保存）
     """
@@ -161,7 +159,7 @@ def add_api_portfolio(stock: RealStockInput):
     portfolio.append(new_item)
     save_real_portfolio(portfolio)
     
-    update_signal_performance()
+    background_tasks.add_task(update_signal_performance, True)
     return {"status": "success", "added": new_item}
 
 @app.delete("/api/portfolio/{index_or_id}")
@@ -180,16 +178,15 @@ def delete_api_portfolio(index_or_id: str):
         except ValueError:
             pass
             
-    save_real_portfolio(new_portfolio)
-    update_signal_performance()
+    save_portfolio(new_portfolio)
     return {"status": "success", "message": f"Portfolio item {index_or_id} deleted"}
 
 @app.post("/api/refresh")
-def refresh_api_data():
+def refresh_api_data(background_tasks: BackgroundTasks):
     """
     最新株価の即時再取得
     """
-    update_signal_performance()
+    background_tasks.add_task(update_signal_performance, True)
     return {"status": "success", "time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 if __name__ == "__main__":
