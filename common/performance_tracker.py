@@ -16,7 +16,7 @@ except ImportError:
     print("⚠️ curl_cffi が見つかりません。yfinance がブロックされる可能性があります")
 
 # DB or ファイル を自動判定
-_USE_DB = bool(os.environ.get("DATABASE_URL", ""))
+_USE_DB = bool(os.environ.get("SUPABASE_URL", ""))
 if _USE_DB:
     from common.database import (
         db_load_history, db_save_history,

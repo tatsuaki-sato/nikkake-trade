@@ -27,8 +27,8 @@ async def startup_event():
     """
     def run_startup():
         try:
-            # DB初期化（DATABASE_URLが設定されている場合のみ）
-            if os.environ.get("DATABASE_URL"):
+            # DB初期化（SUPABASE_URLが設定されている場合のみ）
+            if os.environ.get("SUPABASE_URL"):
                 from common.database import init_db
                 init_db()
         except Exception as e:
