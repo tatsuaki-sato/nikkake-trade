@@ -3,72 +3,150 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Trade Signal Performance Dashboard</title>
+    <title>AI Trade & Real Portfolio Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <style>
-        body { background-color: #f8f9fa; font-family: sans-serif; padding: 20px; }
-        .card-stat { border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        body { background-color: #f8f9fa; font-family: 'Helvetica Neue', Arial, sans-serif; padding: 20px; }
+        .card-stat { border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: none; }
+        .nav-tabs .nav-link.active { font-weight: bold; border-bottom: 3px solid #0d6efd; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2 class="mb-4">🤖 AI Trade Signal Performance Dashboard</h2>
-        <div class="row mb-4">
-            <div class="col-md-4">
-                <div class="card card-stat bg-white p-3 text-center">
-                    <div class="text-muted">通算勝率</div>
-                    <div class="display-5 text-primary font-weight-bold">0.0%</div>
-                    <small>0勝 0敗</small>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card card-stat bg-white p-3 text-center">
-                    <div class="text-muted">確定累積リターン</div>
-                    <div class="display-5 text-success">+0.0%</div>
-                    <small>全利確・損切り決済合計</small>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card card-stat bg-white p-3 text-center">
-                    <div class="text-muted">総シグナル数</div>
-                    <div class="display-5 text-dark">1件</div>
-                    <small>監視中: 1件</small>
-                </div>
-            </div>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>🤖 AI Trade Signal & Real Portfolio Dashboard</h2>
+            <span class="badge bg-primary fs-6">更新: 2026-08-02 22:52</span>
         </div>
 
-        <div class="card bg-white p-4 card-stat">
-            <h5>📋 シグナル勝敗・実測追跡履歴</h5>
-            <table class="table table-hover mt-3">
-                <thead class="table-light">
-                    <tr>
-                        <th>推奨日</th>
-                        <th>銘柄</th>
-                        <th>スコア</th>
-                        <th>推奨価格</th>
-                        <th>目標利確</th>
-                        <th>損切り</th>
-                        <th>最新/最終株価</th>
-                        <th>リターン</th>
-                        <th>ステータス</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    
+        <ul class="nav nav-tabs mb-4 fs-5" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="ai-tab" data-bs-toggle="tab" data-bs-target="#ai-panel" type="button" role="tab">🤖 AI推奨シグナル成績</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="real-tab" data-bs-toggle="tab" data-bs-target="#real-panel" type="button" role="tab">💼 My リアル購入ポートフォリオ</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="myTabContent">
+            <!-- タブ1: AI推奨シグナル -->
+            <div class="tab-pane fade show active" id="ai-panel" role="tabpanel">
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card card-stat bg-white p-3 text-center">
+                            <div class="text-muted">通算勝率</div>
+                            <div class="display-5 text-primary fw-bold">0.0%</div>
+                            <small>0勝 0敗 (0件決済完了)</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card card-stat bg-white p-3 text-center">
+                            <div class="text-muted">確定累積リターン</div>
+                            <div class="display-5 text-success fw-bold">+0.0%</div>
+                            <small>全決済シグナル合計</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card card-stat bg-white p-3 text-center">
+                            <div class="text-muted">総シグナル数</div>
+                            <div class="display-5 text-dark fw-bold">1件</div>
+                            <small>監視中: 1件</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card bg-white p-4 card-stat">
+                    <h5 class="card-title mb-3">📋 AI推奨シグナル実測追跡リスト</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>推奨日</th>
+                                    <th>企業名 (コード)</th>
+                                    <th>スコア</th>
+                                    <th>推奨株価</th>
+                                    <th>100株シミュレーション</th>
+                                    <th>目標利確</th>
+                                    <th>損切り</th>
+                                    <th>最新/最終株価</th>
+                                    <th>リターン</th>
+                                    <th>ステータス</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
         <tr>
             <td>2026-08-02</td>
-            <td><strong>7203</strong></td>
-            <td>85点</td>
+            <td><strong>7203 トヨタ自動車</strong></td>
+            <td><span class="badge bg-secondary">85点</span></td>
             <td>3,000.0円</td>
+            <td>30.0万円</td>
             <td>3,270.0円</td>
             <td>2,820.0円</td>
             <td>3,000.0円</td>
-            <td><strong>+0.00%</strong></td>
-            <td><span class="badge bg-warning">OPEN 監視中</span></td>
+            <td><strong class="text-success">+0.00%</strong></td>
+            <td><span class="badge bg-warning text-dark">OPEN 監視中</span></td>
         </tr>
         
-                </tbody>
-            </table>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- タブ2: My リアル購入ポートフォリオ -->
+            <div class="tab-pane fade" id="real-panel" role="tabpanel">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card card-stat bg-white p-3 text-center">
+                            <div class="text-muted">総投資金額</div>
+                            <div class="display-5 text-dark fw-bold">30.0万円</div>
+                            <small>購入済み保有額合計</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card card-stat bg-white p-3 text-center">
+                            <div class="text-muted">リアル評価損益合計</div>
+                            <div class="display-5 text-success fw-bold">+0円</div>
+                            <small>含み益 / 含み損</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card bg-white p-4 card-stat">
+                    <h5 class="card-title mb-3">💼 実際に購入した銘柄リスト</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>購入日</th>
+                                    <th>企業名</th>
+                                    <th>買付単価</th>
+                                    <th>保有株数</th>
+                                    <th>投資金額</th>
+                                    <th>現在株価</th>
+                                    <th>評価損益 (円/%)</th>
+                                    <th>備考</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+        <tr>
+            <td>2026-08-01</td>
+            <td><strong>7203 トヨタ自動車</strong></td>
+            <td>3,000.0円</td>
+            <td>100株</td>
+            <td>30.0万円</td>
+            <td>3,000.0円</td>
+            <td class="text-success"><strong>+0円 (+0.00%)</strong></td>
+            <td><small class="text-muted">サンプル購入データ (自由に編集・削除可能)</small></td>
+        </tr>
+        
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </body>

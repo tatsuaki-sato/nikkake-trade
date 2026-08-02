@@ -8,6 +8,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 from common.notifier import notify
 from common.cache_manager import get_cached_item, set_cached_item
 from common.performance_tracker import record_signal, update_signal_performance
+from common.stock_names import get_company_name
 from modules.post_analysis.advanced_scraper import get_x_sentiment_score, get_kabutan_news, get_market_trending_themes, get_stock_financial_perks
 from modules.post_analysis.quant_analyzer import evaluate_quant_factors
 
@@ -29,7 +30,6 @@ def get_cached_financial_perks(ticker: str, close_price: float) -> dict:
 def run_daily_scanner():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 売買判断ダッシュボード付きクオンツ事後分析起動...")
     
-    # 既存の全シグナルの最新価格照合と勝敗判定
     update_signal_performance()
     
     tickers_to_fetch = TARGET_TICKERS + [BENCHMARK_TICKER]
@@ -49,8 +49,8 @@ def run_daily_scanner():
                 continue
 
             close_price = float(stock_df.iloc[-1]['Close'])
-            stock_name = ticker.replace('.T', '')
-            sentiment = get_x_sentiment_score(stock_name)
+            stock_name = get_company_name(ticker)
+            sentiment = get_x_sentiment_score(ticker.replace('.T', ''))
             
             quant_result = evaluate_quant_factors(stock_df, market_df, ticker, sentiment)
             score = quant_result['total_score']
@@ -60,7 +60,6 @@ def run_daily_scanner():
                 perks = get_cached_financial_perks(ticker, close_price)
                 trade_plan = quant_result.get('trade_plan', {})
                 
-                # シグナル追跡データベースへの自動記録
                 atr_series = stock_df['Close'].diff().abs().rolling(14).mean()
                 atr = float(atr_series.iloc[-1]) if not pd.isna(atr_series.iloc[-1]) else close_price * 0.02
                 target_p = close_price + (3.0 * atr)
@@ -68,7 +67,7 @@ def run_daily_scanner():
                 record_signal(ticker, close_price, target_p, stop_p, score, quant_result['details'])
                 
                 hit_list.append({
-                    "銘柄コード": stock_name,
+                    "銘柄名": stock_name,
                     "終値": close_price,
                     "スコア": score,
                     "詳細": quant_result['details'],
@@ -94,10 +93,10 @@ def run_daily_scanner():
         hit_list.sort(key=lambda x: x['スコア'], reverse=True)
         
         for hit in hit_list:
-            tv_link = f"https://jp.tradingview.com/chart/?symbol=TSE%3A{hit['銘柄コード']}"
-            notify_text += f"📊 **{hit['銘柄コード']}** (クオンツスコア: **{hit['スコア']}点**)\n"
+            tv_link = f"https://jp.tradingview.com/chart/?symbol=TSE%3A{hit['銘柄名'].split()[0]}"
+            notify_text += f"📊 **{hit['銘柄名']}** (クオンツスコア: **{hit['スコア']}点**)\n"
             notify_text += f"・チャート: {tv_link}\n"
-            notify_text += f"・💵 **最低購入金額**: {hit['最低購入金額']} (終値 {hit['終値']:.1f}円)\n"
+            notify_text += f"・💵 **シミュレーション購入金額 (100株)**: **{hit['最低購入金額']}** (推奨時株価 {hit['終値']:.1f}円)\n"
             notify_text += f"・💰 **配当利回り**: {hit['配当利回り']} / 🎁 **株主優待**: {hit['株主優待']}\n"
             notify_text += f"・⚖️ **割安度・成長性**: PER {hit['PER']} / PBR {hit['PBR']} / **EPS予想成長率**: {hit['EPS成長率']}\n"
             notify_text += f"・📉 **ボラティリティ**: {hit['ボラティリティ']}\n"
@@ -120,7 +119,7 @@ def run_daily_scanner():
         for i, item in enumerate(theme_details[:5], 1):
             stocks_str = ", ".join(item['stocks'])
             notify_text += f"{i}. **{item['theme']}**\n   └ 関連代表銘柄: {stocks_str}\n"
-        notify_text += "\n※全自動で勝率・リスクリワード・全推奨シグナルを追跡データベースに自動記録しています。"
+        notify_text += "\n※全自動でEPS成長率・リスクリワード・損切りラインを常時監視しています。"
         
         notify(notify_text)
 
