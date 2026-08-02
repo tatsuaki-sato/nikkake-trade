@@ -5,9 +5,6 @@ import yfinance as yf
 import time
 
 def get_x_sentiment_score(keyword: str) -> int:
-    """
-    Yahoo!リアルタイム検索（旧Twitter）をスクレイピングして、話題度（0〜100）を算出
-    """
     encoded_keyword = urllib.parse.quote(keyword)
     url = f"https://search.yahoo.co.jp/realtime/search?p={encoded_keyword}"
     headers = {
@@ -27,9 +24,6 @@ def get_x_sentiment_score(keyword: str) -> int:
         return 50
 
 def get_kabutan_news(ticker: str) -> list:
-    """
-    株探（Kabutan）から最新ニュースを取得
-    """
     url = f"https://kabutan.jp/stock/news?code={ticker.replace('.T', '')}"
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -52,7 +46,7 @@ def get_kabutan_news(ticker: str) -> list:
 
 def get_stock_financial_perks(ticker: str, close_price: float = 0.0) -> dict:
     """
-    売買判断7大メトリクス（最低購入金額、配当、優待、PER、PBR）を取得
+    売買判断8大メトリクス（最低購入金額、配当、優待、PER、PBR、EPS成長率）を取得
     """
     symbol = ticker.replace('.T', '')
     res = {
@@ -60,7 +54,8 @@ def get_stock_financial_perks(ticker: str, close_price: float = 0.0) -> dict:
         "dividend_yield": "データなし",
         "yutai_info": "なし",
         "per": "データなし",
-        "pbr": "データなし"
+        "pbr": "データなし",
+        "eps_growth": "要確認"
     }
     
     try:
@@ -78,10 +73,21 @@ def get_stock_financial_perks(ticker: str, close_price: float = 0.0) -> dict:
         pbr = info.get('priceToBook', None)
         if pbr is not None:
             res['pbr'] = f"{pbr:.2f}倍"
+
+        # EPS成長率（来期予想EPS vs 今期実績EPS）
+        trailing_eps = info.get('trailingEps', None)
+        forward_eps = info.get('forwardEps', None)
+        if trailing_eps and forward_eps and trailing_eps > 0:
+            growth = ((forward_eps / trailing_eps) - 1) * 100
+            prefix = "+" if growth > 0 else ""
+            res['eps_growth'] = f"{prefix}{growth:.1f}% (増益予想)" if growth > 0 else f"{growth:.1f}% (減益予想)"
+        elif info.get('earningsGrowth', None) is not None:
+            eg = info.get('earningsGrowth') * 100
+            prefix = "+" if eg > 0 else ""
+            res['eps_growth'] = f"{prefix}{eg:.1f}%"
     except Exception:
         pass
         
-    # 株主優待情報（株探）
     try:
         url = f"https://kabutan.jp/stock/yutai?code={symbol}"
         headers = {'User-Agent': 'Mozilla/5.0'}
@@ -100,9 +106,6 @@ def get_stock_financial_perks(ticker: str, close_price: float = 0.0) -> dict:
     return res
 
 def get_market_trending_themes() -> list:
-    """
-    株探の人気テーマランキングと、各テーマの関連代表銘柄を取得
-    """
     url = "https://kabutan.jp/theme/"
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'

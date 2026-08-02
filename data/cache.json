@@ -78,5 +78,105 @@
       "has_5percent_report": false,
       "details": ""
     }
+  },
+  "perks_7203.T": {
+    "timestamp": 1785675512.343631,
+    "value": {
+      "min_investment": "306,700円",
+      "dividend_yield": "326.00%",
+      "yutai_info": "株主優待制度あり",
+      "per": "10.4倍",
+      "pbr": "1.00倍"
+    }
+  },
+  "perks_9984.T": {
+    "timestamp": 1785675514.6487129,
+    "value": {
+      "min_investment": "526,000円",
+      "dividend_yield": "21.00%",
+      "yutai_info": "株主優待制度あり",
+      "per": "6.0倍",
+      "pbr": "1.70倍"
+    }
+  },
+  "perks_6920.T": {
+    "timestamp": 1785675516.6799738,
+    "value": {
+      "min_investment": "3,791,000円",
+      "dividend_yield": "87.00%",
+      "yutai_info": "株主優待制度あり",
+      "per": "39.2倍",
+      "pbr": "15.07倍"
+    }
+  },
+  "perks_8035.T": {
+    "timestamp": 1785675519.055616,
+    "value": {
+      "min_investment": "5,550,000円",
+      "dividend_yield": "135.00%",
+      "yutai_info": "株主優待制度あり",
+      "per": "44.4倍",
+      "pbr": "12.20倍"
+    }
+  },
+  "perks_6861.T": {
+    "timestamp": 1785675520.686385,
+    "value": {
+      "min_investment": "8,115,000円",
+      "dividend_yield": "68.00%",
+      "yutai_info": "株主優待制度あり",
+      "per": "44.2倍",
+      "pbr": "5.55倍"
+    }
+  },
+  "perks_7974.T": {
+    "timestamp": 1785675522.943124,
+    "value": {
+      "min_investment": "767,900円",
+      "dividend_yield": "285.00%",
+      "yutai_info": "株主優待制度あり",
+      "per": "21.1倍",
+      "pbr": "3.00倍"
+    }
+  },
+  "perks_6758.T": {
+    "timestamp": 1785675525.034483,
+    "value": {
+      "min_investment": "378,700円",
+      "dividend_yield": "92.00%",
+      "yutai_info": "株主優待制度あり",
+      "per": "20.3倍",
+      "pbr": "2.76倍"
+    }
+  },
+  "perks_9432.T": {
+    "timestamp": 1785675527.8283892,
+    "value": {
+      "min_investment": "15,239円",
+      "dividend_yield": "354.00%",
+      "yutai_info": "株主優待制度あり",
+      "per": "12.1倍",
+      "pbr": "1.28倍"
+    }
+  },
+  "perks_8306.T": {
+    "timestamp": 1785675529.5753212,
+    "value": {
+      "min_investment": "357,100円",
+      "dividend_yield": "269.00%",
+      "yutai_info": "株主優待制度あり",
+      "per": "16.8倍",
+      "pbr": "2.06倍"
+    }
+  },
+  "perks_4063.T": {
+    "timestamp": 1785675531.637075,
+    "value": {
+      "min_investment": "580,000円",
+      "dividend_yield": "200.00%",
+      "yutai_info": "株主優待制度あり",
+      "per": "23.0倍",
+      "pbr": "2.37倍"
+    }
   }
 }

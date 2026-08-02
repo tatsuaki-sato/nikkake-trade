@@ -71,6 +71,7 @@ def run_predictor():
                     "株主優待": perks.get('yutai_info', 'なし'),
                     "PER": perks.get('per', 'データなし'),
                     "PBR": perks.get('pbr', 'データなし'),
+                    "EPS成長率": perks.get('eps_growth', '要確認'),
                     "ボラティリティ": trade_plan.get('volatility', '要確認'),
                     "損切りライン": trade_plan.get('stop_loss', '要確認'),
                     "目標価格": trade_plan.get('target_price', '要確認'),
@@ -91,7 +92,7 @@ def run_predictor():
             notify_text += f"・チャート: {tv_link}\n"
             notify_text += f"・💵 **最低購入金額**: {hit['最低購入金額']} (終値 {hit['終値']:.1f}円)\n"
             notify_text += f"・💰 **配当利回り**: {hit['配当利回り']} / 🎁 **株主優待**: {hit['株主優待']}\n"
-            notify_text += f"・⚖️ **割安度**: PER {hit['PER']} / PBR {hit['PBR']}\n"
+            notify_text += f"・⚖️ **割安度・成長性**: PER {hit['PER']} / PBR {hit['PBR']} / **EPS予想成長率**: {hit['EPS成長率']}\n"
             notify_text += f"・📉 **ボラティリティ**: {hit['ボラティリティ']}\n"
             notify_text += f"・🛑 **推奨損切りライン**: {hit['損切りライン']}\n"
             notify_text += f"・🎯 **目標価格 (利確)**: {hit['目標価格']} (RR比 {hit['リスクリワード']})\n"
@@ -111,7 +112,7 @@ def run_predictor():
         for i, item in enumerate(theme_details[:5], 1):
             stocks_str = ", ".join(item['stocks'])
             notify_text += f"{i}. **{item['theme']}**\n   └ 関連代表銘柄: {stocks_str}\n"
-        notify_text += "\n※全自動で損切りライン・目標価格を計算しモニタリングしています。"
+        notify_text += "\n※全自動でEPS成長率・リスクリワード・損切りラインを常時監視しています。"
         
         notify(notify_text)
 
