@@ -647,6 +647,10 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 <div class="modal-body">
                     <form id="addSignalForm">
                         <div class="mb-3">
+                            <label class="form-label">推奨日時</label>
+                            <input type="datetime-local" class="form-control" id="inputSignalDate" required>
+                        </div>
+                        <div class="mb-3">
                             <label class="form-label">銘柄コード (4桁)</label>
                             <input type="text" class="form-control" id="inputSignalTicker" placeholder="例: 7203" required>
                         </div>
@@ -997,6 +1001,8 @@ def generate_html_dashboard(history: list, real_portfolio: list):
         }}
 
         async function addSignalFromForm() {{
+            const signalDateRaw = document.getElementById('inputSignalDate').value;
+            const signalDate = signalDateRaw ? signalDateRaw.replace('T', ' ') : null;
             const ticker = document.getElementById('inputSignalTicker').value.trim();
             let name = document.getElementById('inputSignalName').value.trim();
             const entryPrice = parseFloat(document.getElementById('inputSignalEntryPrice').value);
@@ -1017,7 +1023,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     method: 'POST',
                     headers: {{ 'Content-Type': 'application/json' }},
                     body: JSON.stringify({{ 
-                        ticker, name, entry_price: entryPrice, target_price: targetPrice, stop_loss_price: stopPrice, theme: theme || '自分で見たい候補' 
+                        ticker, name, entry_price: entryPrice, target_price: targetPrice, stop_loss_price: stopPrice, theme: theme || '自分で見たい候補', date: signalDate 
                     }})
                 }});
                 if (res.ok) {{
@@ -1089,6 +1095,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             const now = new Date();
             const nowISO = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0,16);
             document.getElementById('inputBuyDate').value = nowISO;
+            document.getElementById('inputSignalDate').value = nowISO;
             renderAIHistory();
             renderRealPortfolio();
         }});

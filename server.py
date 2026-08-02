@@ -86,10 +86,7 @@ def add_api_history(signal: AISignalInput, background_tasks: BackgroundTasks):
         "return_pct": 0.0,
         "pnl_yen": 0.0,
         "details": {
-            "Theme": signal.theme if signal.theme else "手動追加候補",
-            "PER": "14.2倍",
-            "PBR": "1.2倍",
-            "ATR": f"±{round(entry_p * 0.02)}円"
+            "Theme": signal.theme if signal.theme else "手動追加候補"
         }
     }
     history.append(new_item)

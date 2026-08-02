@@ -22,7 +22,7 @@
                 <span id="updateSpinner" class="spinner-border spinner-border-sm text-primary me-2 d-none" role="status"></span>
                 <span id="updateStatusText" class="text-muted me-3 small">10分キャッシュ有効中</span>
                 <button class="btn btn-outline-primary btn-sm me-2" onclick="refreshData(true)">🔄 データ再読み込み (手動更新)</button>
-                <span class="badge bg-primary fs-6">更新: 08-03 01:43</span>
+                <span class="badge bg-primary fs-6">更新: 08-03 01:51</span>
             </div>
         </div>
 
@@ -165,6 +165,10 @@
                 </div>
                 <div class="modal-body">
                     <form id="addSignalForm">
+                        <div class="mb-3">
+                            <label class="form-label">推奨日時</label>
+                            <input type="datetime-local" class="form-control" id="inputSignalDate" required>
+                        </div>
                         <div class="mb-3">
                             <label class="form-label">銘柄コード (4桁)</label>
                             <input type="text" class="form-control" id="inputSignalTicker" placeholder="例: 7203" required>
@@ -516,6 +520,8 @@
         }
 
         async function addSignalFromForm() {
+            const signalDateRaw = document.getElementById('inputSignalDate').value;
+            const signalDate = signalDateRaw ? signalDateRaw.replace('T', ' ') : null;
             const ticker = document.getElementById('inputSignalTicker').value.trim();
             let name = document.getElementById('inputSignalName').value.trim();
             const entryPrice = parseFloat(document.getElementById('inputSignalEntryPrice').value);
@@ -536,7 +542,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        ticker, name, entry_price: entryPrice, target_price: targetPrice, stop_loss_price: stopPrice, theme: theme || '自分で見たい候補' 
+                        ticker, name, entry_price: entryPrice, target_price: targetPrice, stop_loss_price: stopPrice, theme: theme || '自分で見たい候補', date: signalDate 
                     })
                 });
                 if (res.ok) {
@@ -608,6 +614,7 @@
             const now = new Date();
             const nowISO = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0,16);
             document.getElementById('inputBuyDate').value = nowISO;
+            document.getElementById('inputSignalDate').value = nowISO;
             renderAIHistory();
             renderRealPortfolio();
         });
