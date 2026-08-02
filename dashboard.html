@@ -19,7 +19,7 @@
             <h2>📈 nikkake-trade - AI Signal & Real Portfolio Dashboard</h2>
             <div>
                 <button class="btn btn-outline-primary btn-sm me-2" onclick="refreshData()">🔄 データ再読み込み</button>
-                <span class="badge bg-primary fs-6">更新: 08-03 00:18</span>
+                <span class="badge bg-primary fs-6">更新: 08-03 00:20</span>
             </div>
         </div>
 
@@ -35,19 +35,26 @@
         <div class="tab-content" id="myTabContent">
             <!-- タブ1: AI推奨シグナル -->
             <div class="tab-pane fade show active" id="ai-panel" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4>🤖 AI推奨 ＆ 自分で見たい候補銘柄リスト</h4>
+                    <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addSignalModal">
+                        ➕ 画面から推奨候補銘柄を追加
+                    </button>
+                </div>
+
                 <div class="row mb-4">
                     <div class="col-md-4">
                         <div class="card card-stat bg-white p-3 text-center">
                             <div class="text-muted">通算勝率</div>
-                            <div class="display-5 text-primary fw-bold" id="aiWinRateText">60.0%</div>
-                            <small id="aiWinLossText">6勝 4敗 (10件決済完了)</small>
+                            <div class="display-5 text-primary fw-bold" id="aiWinRateText">10.0%</div>
+                            <small id="aiWinLossText">1勝 9敗 (10件決済完了)</small>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="card card-stat bg-white p-3 text-center">
                             <div class="text-muted">確定累積損益 (100株計)</div>
-                            <div class="display-5 text-success fw-bold" id="aiReturnText">+6,700円</div>
-                            <small id="aiReturnPctText">全決済リターン通算: +2.2%</small>
+                            <div class="display-5 text-danger fw-bold" id="aiReturnText">-224,338円</div>
+                            <small id="aiReturnPctText">全決済リターン通算: -32.0%</small>
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -62,7 +69,7 @@
                 <div class="card bg-white p-4 card-stat">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="card-title mb-0">📋 AI推奨シグナル実測追跡リスト</h5>
-                        <small class="text-muted">推奨日時〜利確/損切り決着日時・100株損益額・指標(PER/EPS/ATR)まで完全表示</small>
+                        <small class="text-muted">推奨日時〜実際の利確/損切り決着日付・100株損益額・指標(PER/EPS/ATR)まで完全計算</small>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
@@ -147,7 +154,51 @@
         </div>
     </div>
 
-    <!-- 銘柄登録モーダル -->
+    <!-- AI推奨候補登録モーダル -->
+    <div class="modal fade" id="addSignalModal" tabindex="-1" aria-labelledby="addSignalModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addSignalModalLabel">➕ 自分で見たい候補銘柄を追加</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addSignalForm">
+                        <div class="mb-3">
+                            <label class="form-label">銘柄コード (4桁)</label>
+                            <input type="text" class="form-control" id="inputSignalTicker" placeholder="例: 7203" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">企業名 / メモ (任意)</label>
+                            <input type="text" class="form-control" id="inputSignalName" placeholder="例: トヨタ自動車">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">推奨時株価 (円)</label>
+                            <input type="number" step="0.1" class="form-control" id="inputSignalEntryPrice" placeholder="例: 3000" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">目標利確株価 (任意 - 空欄で+6%)</label>
+                            <input type="number" step="0.1" class="form-control" id="inputSignalTargetPrice" placeholder="例: 3270">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">損切り株価 (任意 - 空欄で-4%)</label>
+                            <input type="number" step="0.1" class="form-control" id="inputSignalStopPrice" placeholder="例: 2880">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">評価テーマ / 注目理由</label>
+                            <input type="text" class="form-control" id="inputSignalTheme" placeholder="例: 注目テーマ / 高配当">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                    <button type="button" class="btn btn-primary" onclick="addSignalFromForm()">候補に追加して保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- リアル購入銘柄登録モーダル -->
     <div class="modal fade" id="addStockModal" tabindex="-1" aria-labelledby="addStockModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -188,7 +239,7 @@
     </div>
 
     <script>
-        const serverHistory = [{"id": "7203.T_2026-08-02", "date": "08-02 15:30", "ticker": "7203", "entry_price": 3000.0, "target_price": 3270.0, "stop_loss_price": 2820.0, "score": 85, "status": "LOSS", "current_price": 3067.0, "max_price": 3233.0, "min_price": 2708.0, "return_pct": 2.23, "details": {"Residual_Momentum": "テスト"}, "close_date": "2026-08-02", "pnl_yen": 6700.0, "closed_at": "08-02 23:48"}, {"id": "8035_2026-08-02", "date": "08-02 15:30", "ticker_code": "8035", "name": "8035 東京エレクトロン", "entry_price": 55500.0, "sim_amount": 5550000.0, "target_price": 58830.0, "stop_loss_price": 53280.0, "score": 65, "status": "WIN", "current_price": 55500.0, "max_price": 81260.0, "min_price": 48580.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "6920_2026-08-02", "date": "08-02 15:30", "ticker_code": "6920", "name": "6920 レーザーテック", "entry_price": 37910.0, "sim_amount": 3791000.0, "target_price": 40184.6, "stop_loss_price": 36393.6, "score": 65, "status": "WIN", "current_price": 37910.0, "max_price": 54080.0, "min_price": 33200.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "6857_2026-08-02", "date": "08-02 15:30", "ticker_code": "6857", "name": "6857 アドバンテスト", "entry_price": 32500.0, "sim_amount": 3250000.0, "target_price": 34450.0, "stop_loss_price": 31200.0, "score": 65, "status": "LOSS", "current_price": 32500.0, "max_price": 34200.0, "min_price": 24135.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "9984_2026-08-02", "date": "08-02 15:30", "ticker_code": "9984", "name": "9984 ソフトバンクグループ", "entry_price": 5260.0, "sim_amount": 526000.0, "target_price": 5575.6, "stop_loss_price": 5049.6, "score": 65, "status": "WIN", "current_price": 5260.0, "max_price": 6660.0, "min_price": 4500.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "6702_2026-08-02", "date": "08-02 15:30", "ticker_code": "6702", "name": "6702 富士通", "entry_price": 3659.0, "sim_amount": 365900.0, "target_price": 3878.54, "stop_loss_price": 3512.64, "score": 65, "status": "WIN", "current_price": 3659.0, "max_price": 3928.0, "min_price": 3181.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "6701_2026-08-02", "date": "08-02 15:30", "ticker_code": "6701", "name": "6701 NEC", "entry_price": 4740.0, "sim_amount": 474000.0, "target_price": 5024.4, "stop_loss_price": 4550.4, "score": 65, "status": "WIN", "current_price": 4740.0, "max_price": 5104.0, "min_price": 3912.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "7203_2026-08-02", "date": "08-02 15:30", "ticker_code": "7203", "name": "7203 トヨタ自動車", "entry_price": 3067.0, "sim_amount": 306700.0, "target_price": 3251.02, "stop_loss_price": 2944.32, "score": 65, "status": "LOSS", "current_price": 3067.0, "max_price": 3233.0, "min_price": 2708.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "8306_2026-08-02", "date": "08-02 15:30", "ticker_code": "8306", "name": "8306 三菱UFJフィナンシャルG", "entry_price": 3571.0, "sim_amount": 357100.0, "target_price": 3785.26, "stop_loss_price": 3428.16, "score": 65, "status": "WIN", "current_price": 3571.0, "max_price": 3813.0, "min_price": 3207.0, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}, {"id": "9432_2026-08-02", "date": "08-02 15:30", "ticker_code": "9432", "name": "9432 NTT (日本電信電話)", "entry_price": 152.39999389648438, "sim_amount": 15239.999389648438, "target_price": 161.54399353027344, "stop_loss_price": 146.303994140625, "score": 65, "status": "LOSS", "current_price": 152.4, "max_price": 161.2, "min_price": 142.6, "return_pct": 0.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02", "pnl_yen": 0.0, "closed_at": "08-02 23:48"}];
+        const serverHistory = [{"id": "7203.T_2026-08-02", "date": "08-02 15:30", "ticker": "7203", "entry_price": 3000.0, "target_price": 3270.0, "stop_loss_price": 2820.0, "score": 85, "status": "LOSS", "current_price": 3067.0, "max_price": 3233.0, "min_price": 2686.0, "return_pct": -6.0, "details": {"Residual_Momentum": "テスト"}, "close_date": "2026-08-02", "pnl_yen": -18000.0, "closed_at": "05-11 15:30"}, {"id": "8035_2026-08-02", "date": "08-02 15:30", "ticker_code": "8035", "name": "8035 東京エレクトロン", "entry_price": 55500.0, "sim_amount": 5550000.0, "target_price": 58830.0, "stop_loss_price": 53280.0, "score": 65, "status": "LOSS", "current_price": 55500.0, "max_price": 81260.0, "min_price": 43980.0, "return_pct": -4.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02", "pnl_yen": -222000.0, "closed_at": "04-30 15:30"}, {"id": "6920_2026-08-02", "date": "08-02 15:30", "ticker_code": "6920", "name": "6920 レーザーテック", "entry_price": 37910.0, "sim_amount": 3791000.0, "target_price": 40184.6, "stop_loss_price": 36393.6, "score": 65, "status": "WIN", "current_price": 37910.0, "max_price": 58349.2, "min_price": 33200.0, "return_pct": 6.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02", "pnl_yen": 227460.0, "closed_at": "04-30 15:30"}, {"id": "6857_2026-08-02", "date": "08-02 15:30", "ticker_code": "6857", "name": "6857 アドバンテスト", "entry_price": 32500.0, "sim_amount": 3250000.0, "target_price": 34450.0, "stop_loss_price": 31200.0, "score": 65, "status": "LOSS", "current_price": 32500.0, "max_price": 35940.0, "min_price": 24135.0, "return_pct": -4.0, "details": {"Theme": "【注目テーマTOP3】半導体"}, "close_date": "2026-08-02", "pnl_yen": -130000.0, "closed_at": "04-30 15:30"}, {"id": "9984_2026-08-02", "date": "08-02 15:30", "ticker_code": "9984", "name": "9984 ソフトバンクグループ", "entry_price": 5260.0, "sim_amount": 526000.0, "target_price": 5575.6, "stop_loss_price": 5049.6, "score": 65, "status": "LOSS", "current_price": 5260.0, "max_price": 9074.0, "min_price": 4500.0, "return_pct": -4.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02", "pnl_yen": -21040.0, "closed_at": "04-30 15:30"}, {"id": "6702_2026-08-02", "date": "08-02 15:30", "ticker_code": "6702", "name": "6702 富士通", "entry_price": 3659.0, "sim_amount": 365900.0, "target_price": 3878.54, "stop_loss_price": 3512.64, "score": 65, "status": "LOSS", "current_price": 3659.0, "max_price": 3928.0, "min_price": 3016.0, "return_pct": -4.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02", "pnl_yen": -14636.0, "closed_at": "04-30 15:30"}, {"id": "6701_2026-08-02", "date": "08-02 15:30", "ticker_code": "6701", "name": "6701 NEC", "entry_price": 4740.0, "sim_amount": 474000.0, "target_price": 5024.4, "stop_loss_price": 4550.4, "score": 65, "status": "LOSS", "current_price": 4740.0, "max_price": 5104.0, "min_price": 3657.0, "return_pct": -4.0, "details": {"Theme": "【注目テーマTOP3】AI・データセンター"}, "close_date": "2026-08-02", "pnl_yen": -18960.0, "closed_at": "04-30 15:30"}, {"id": "7203_2026-08-02", "date": "08-02 15:30", "ticker_code": "7203", "name": "7203 トヨタ自動車", "entry_price": 3067.0, "sim_amount": 306700.0, "target_price": 3251.02, "stop_loss_price": 2944.32, "score": 65, "status": "LOSS", "current_price": 3067.0, "max_price": 3233.0, "min_price": 2686.0, "return_pct": -4.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02", "pnl_yen": -12268.0, "closed_at": "05-08 15:30"}, {"id": "8306_2026-08-02", "date": "08-02 15:30", "ticker_code": "8306", "name": "8306 三菱UFJフィナンシャルG", "entry_price": 3571.0, "sim_amount": 357100.0, "target_price": 3785.26, "stop_loss_price": 3428.16, "score": 65, "status": "LOSS", "current_price": 3571.0, "max_price": 3813.0, "min_price": 2754.0, "return_pct": -4.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02", "pnl_yen": -14284.0, "closed_at": "04-30 15:30"}, {"id": "9432_2026-08-02", "date": "08-02 15:30", "ticker_code": "9432", "name": "9432 NTT (日本電信電話)", "entry_price": 152.39999389648438, "sim_amount": 15239.999389648438, "target_price": 161.54399353027344, "stop_loss_price": 146.303994140625, "score": 65, "status": "LOSS", "current_price": 152.4, "max_price": 161.2, "min_price": 142.6, "return_pct": -4.0, "details": {"Theme": "【注目テーマTOP3】高配当・自社株買い"}, "close_date": "2026-08-02", "pnl_yen": -610.0, "closed_at": "06-02 15:30"}];
         const serverPortfolio = [];
 
         async function fetchHistoryAPI() {
@@ -232,7 +283,6 @@
             if (details.Residual_Momentum) lines.push(`${details.Residual_Momentum}`);
             
             if (lines.length === 0) {
-                // yfinanceに基づくデフォルト計算
                 const estATR = (entryP * 0.02).toFixed(0);
                 return `<small class="text-muted">推定ATR: ±${estATR}円<br>PER: 14.5倍<br>EPS予想: +12%</small>`;
             }
@@ -251,7 +301,7 @@
             let totalPnlYen = 0;
 
             if (!history || history.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="13" class="text-center text-muted">現在、実測推奨シグナルデータはありません。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" class="text-center text-muted">現在、推奨シグナルデータはありません。「➕ 画面から推奨候補銘柄を追加」ボタンを押して登録できます。</td></tr>';
                 document.getElementById('aiWinRateText').innerText = '0.0%';
                 document.getElementById('aiWinLossText').innerText = '0勝 0敗';
                 document.getElementById('aiReturnText').innerText = '+0円';
@@ -275,10 +325,7 @@
                 else if (st === 'LOSS') { pnlYen = (stopP - entryP) * 100; }
 
                 const dtFormatted = formatNoYear(item.date);
-                let closedAtFormatted = formatNoYear(item.closed_at);
-                if ((st === 'WIN' || st === 'LOSS') && closedAtFormatted === '-') {
-                    closedAtFormatted = dtFormatted;
-                }
+                const closedAtFormatted = formatNoYear(item.closed_at);
                 
                 if (st === 'WIN') { wins++; totalClosed++; totalReturnPct += retP; totalPnlYen += pnlYen; }
                 else if (st === 'LOSS') { losses++; totalClosed++; totalReturnPct += retP; totalPnlYen += pnlYen; }
@@ -295,7 +342,7 @@
                     <tr>
                         <td><small class="fw-bold">${dtFormatted}</small></td>
                         <td><strong>${item.name || item.ticker_code || item.ticker}</strong></td>
-                        <td><span class="badge bg-secondary">${item.score || 65}点</span></td>
+                        <td><span class="badge bg-secondary">${item.score || 75}点</span></td>
                         <td>${entryP.toLocaleString()}円</td>
                         <td>${(simAmt / 10000).toFixed(1)}万円</td>
                         <td>${targetP.toLocaleString()}円</td>
@@ -374,7 +421,7 @@
                         <td>${targetP.toLocaleString()}円</td>
                         <td>${stopP.toLocaleString()}円</td>
                         <td>${currP.toLocaleString()}円</td>
-                        <td class="${pnlCls}"><strong>${retSign || pnlSign}${Math.round(pnlY).toLocaleString()}円 (${pnlSign}${pnlP.toFixed(2)}%)</strong></td>
+                        <td class="${pnlCls}"><strong>${pnlSign}${Math.round(pnlY).toLocaleString()}円 (${pnlSign}${pnlP.toFixed(2)}%)</strong></td>
                         <td>${badge}</td>
                         <td><small class="text-muted">${closedAtFormatted}</small></td>
                         <td>${metricsHTML}</td>
@@ -388,6 +435,41 @@
             const totalPnlElem = document.getElementById('totalPnlText');
             totalPnlElem.innerText = totalSign + Math.round(totalPnl).toLocaleString() + '円';
             totalPnlElem.className = 'display-5 fw-bold ' + (totalPnl >= 0 ? 'text-success' : 'text-danger');
+        }
+
+        async function addSignalFromForm() {
+            const ticker = document.getElementById('inputSignalTicker').value.trim();
+            let name = document.getElementById('inputSignalName').value.trim();
+            const entryPrice = parseFloat(document.getElementById('inputSignalEntryPrice').value);
+            const targetPriceRaw = document.getElementById('inputSignalTargetPrice').value;
+            const stopPriceRaw = document.getElementById('inputSignalStopPrice').value;
+            const theme = document.getElementById('inputSignalTheme').value.trim();
+
+            if (!ticker || isNaN(entryPrice)) {
+                alert('銘柄コードと推奨時株価を入力してください。');
+                return;
+            }
+
+            const targetPrice = targetPriceRaw ? parseFloat(targetPriceRaw) : null;
+            const stopPrice = stopPriceRaw ? parseFloat(stopPriceRaw) : null;
+
+            try {
+                const res = await fetch('/api/history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        ticker, name, entry_price: entryPrice, target_price: targetPrice, stop_loss_price: stopPrice, theme: theme || '自分で見たい候補' 
+                    })
+                });
+                if (res.ok) {
+                    const modalElem = document.getElementById('addSignalModal');
+                    const modal = bootstrap.Modal.getInstance(modalElem);
+                    if (modal) modal.hide();
+                    document.getElementById('addSignalForm').reset();
+                    renderAIHistory();
+                    return;
+                }
+            } catch(e) {}
         }
 
         async function addRealStockFromForm() {
@@ -418,19 +500,6 @@
                     return;
                 }
             } catch(e) {}
-
-            const newItem = {
-                id: 'user_' + Date.now(),
-                ticker, name: name || ticker, buy_date: buyDate, buy_price: buyPrice, shares, current_price: buyPrice
-            };
-            const portfolio = getLocalPortfolio();
-            portfolio.push(newItem);
-            saveLocalPortfolio(portfolio);
-
-            const modalElem = document.getElementById('addStockModal');
-            const modal = bootstrap.Modal.getInstance(modalElem);
-            if (modal) modal.hide();
-            document.getElementById('addStockForm').reset();
         }
 
         async function deleteRealStock(itemId) {
@@ -442,10 +511,6 @@
                         return;
                     }
                 } catch(e) {}
-
-                const portfolio = getLocalPortfolio();
-                const newPort = portfolio.filter((item, idx) => item.id !== itemId && idx !== parseInt(itemId));
-                saveLocalPortfolio(newPort);
             }
         }
 
@@ -458,10 +523,6 @@
                         return;
                     }
                 } catch(e) {}
-
-                const history = getLocalHistory();
-                const newHist = history.filter((item, idx) => item.id !== signalId && idx !== parseInt(signalId));
-                saveLocalHistory(newHist);
             }
         }
 

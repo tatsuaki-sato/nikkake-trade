@@ -89,7 +89,7 @@ def update_signal_performance():
         return
 
     try:
-        data = yf.download(tickers, period="1mo", interval="1d", group_by="ticker", progress=False)
+        data = yf.download(tickers, period="3mo", interval="1d", group_by="ticker", progress=False)
     except Exception as e:
         print(f"株追跡データ取得エラー: {e}")
         generate_html_dashboard(history, real_portfolio)
@@ -128,20 +128,38 @@ def update_signal_performance():
             item["return_pct"] = round(((latest_close - entry_p) / entry_p) * 100, 2)
             item["pnl_yen"] = round((latest_close - entry_p) * 100, 0)
             
-            if item.get("status") == "OPEN":
-                if low_price <= stop_p:
-                    item["status"] = "LOSS"
+            # 日毎の履歴を走査して最初についた本当の決着日付(closed_at)を精密計算
+            trigger_closed_at = None
+            trigger_status = None
+            
+            for idx, row in df.iterrows():
+                r_high = float(row["High"])
+                r_low = float(row["Low"])
+                dt_obj = pd.to_datetime(idx)
+                dt_formatted = dt_obj.strftime("%m-%d 15:30")
+                
+                # 保守的原則: 低価格(損切)を最優先判定
+                if r_low <= stop_p:
+                    trigger_status = "LOSS"
+                    trigger_closed_at = dt_formatted
+                    break
+                elif r_high >= target_p:
+                    trigger_status = "WIN"
+                    trigger_closed_at = dt_formatted
+                    break
+            
+            if trigger_status:
+                item["status"] = trigger_status
+                item["closed_at"] = trigger_closed_at if trigger_closed_at else now_time_str
+                if trigger_status == "LOSS":
                     item["return_pct"] = round(((stop_p - entry_p) / entry_p) * 100, 2)
                     item["pnl_yen"] = round((stop_p - entry_p) * 100, 0)
-                    item["closed_at"] = now_time_str
-                elif high_price >= target_p:
-                    item["status"] = "WIN"
+                else:
                     item["return_pct"] = round(((target_p - entry_p) / entry_p) * 100, 2)
                     item["pnl_yen"] = round((target_p - entry_p) * 100, 0)
-                    item["closed_at"] = now_time_str
             else:
-                if not item.get("closed_at") or item.get("closed_at") == "-":
-                    item["closed_at"] = now_time_str
+                item["status"] = "OPEN"
+                item["closed_at"] = "-"
         except Exception:
             continue
 
@@ -163,27 +181,38 @@ def update_signal_performance():
                 item["pnl_yen"] = round((latest_close - buy_p) * shares, 0)
                 item["pnl_pct"] = round(((latest_close - buy_p) / buy_p) * 100, 2) if buy_p > 0 else 0.0
                 
-                # 目標利確・損切りラインが設定されていない場合はデフォルト設定 (+6% / -4%)
                 if not item.get("target_price"):
                     item["target_price"] = round(buy_p * 1.06, 1)
                 if not item.get("stop_loss_price"):
                     item["stop_loss_price"] = round(buy_p * 0.96, 1)
                 
-                high_price = float(df["High"].max())
-                low_price = float(df["Low"].min())
                 target_p = item["target_price"]
                 stop_p = item["stop_loss_price"]
                 
-                if item.get("status") in ["OPEN", None, "保有中"]:
-                    if low_price <= stop_p:
-                        item["status"] = "LOSS 損切"
-                        item["closed_at"] = now_time_str
-                    elif high_price >= target_p:
-                        item["status"] = "WIN 利確"
-                        item["closed_at"] = now_time_str
-                    else:
-                        item["status"] = "HOLD 保有中"
-                        item["closed_at"] = "-"
+                trigger_closed_at = None
+                trigger_status = None
+                
+                for idx, row in df.iterrows():
+                    r_high = float(row["High"])
+                    r_low = float(row["Low"])
+                    dt_obj = pd.to_datetime(idx)
+                    dt_formatted = dt_obj.strftime("%m-%d 15:30")
+                    
+                    if r_low <= stop_p:
+                        trigger_status = "LOSS 損切"
+                        trigger_closed_at = dt_formatted
+                        break
+                    elif r_high >= target_p:
+                        trigger_status = "WIN 利確"
+                        trigger_closed_at = dt_formatted
+                        break
+                
+                if trigger_status:
+                    item["status"] = trigger_status
+                    item["closed_at"] = trigger_closed_at if trigger_closed_at else now_time_str
+                else:
+                    item["status"] = "HOLD 保有中"
+                    item["closed_at"] = "-"
         except Exception:
             continue
 
@@ -292,6 +321,13 @@ def generate_html_dashboard(history: list, real_portfolio: list):
         <div class="tab-content" id="myTabContent">
             <!-- タブ1: AI推奨シグナル -->
             <div class="tab-pane fade show active" id="ai-panel" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4>🤖 AI推奨 ＆ 自分で見たい候補銘柄リスト</h4>
+                    <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addSignalModal">
+                        ➕ 画面から推奨候補銘柄を追加
+                    </button>
+                </div>
+
                 <div class="row mb-4">
                     <div class="col-md-4">
                         <div class="card card-stat bg-white p-3 text-center">
@@ -319,7 +355,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 <div class="card bg-white p-4 card-stat">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="card-title mb-0">📋 AI推奨シグナル実測追跡リスト</h5>
-                        <small class="text-muted">推奨日時〜利確/損切り決着日時・100株損益額・指標(PER/EPS/ATR)まで完全表示</small>
+                        <small class="text-muted">推奨日時〜実際の利確/損切り決着日付・100株損益額・指標(PER/EPS/ATR)まで完全計算</small>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
@@ -404,7 +440,51 @@ def generate_html_dashboard(history: list, real_portfolio: list):
         </div>
     </div>
 
-    <!-- 銘柄登録モーダル -->
+    <!-- AI推奨候補登録モーダル -->
+    <div class="modal fade" id="addSignalModal" tabindex="-1" aria-labelledby="addSignalModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addSignalModalLabel">➕ 自分で見たい候補銘柄を追加</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addSignalForm">
+                        <div class="mb-3">
+                            <label class="form-label">銘柄コード (4桁)</label>
+                            <input type="text" class="form-control" id="inputSignalTicker" placeholder="例: 7203" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">企業名 / メモ (任意)</label>
+                            <input type="text" class="form-control" id="inputSignalName" placeholder="例: トヨタ自動車">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">推奨時株価 (円)</label>
+                            <input type="number" step="0.1" class="form-control" id="inputSignalEntryPrice" placeholder="例: 3000" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">目標利確株価 (任意 - 空欄で+6%)</label>
+                            <input type="number" step="0.1" class="form-control" id="inputSignalTargetPrice" placeholder="例: 3270">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">損切り株価 (任意 - 空欄で-4%)</label>
+                            <input type="number" step="0.1" class="form-control" id="inputSignalStopPrice" placeholder="例: 2880">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">評価テーマ / 注目理由</label>
+                            <input type="text" class="form-control" id="inputSignalTheme" placeholder="例: 注目テーマ / 高配当">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                    <button type="button" class="btn btn-primary" onclick="addSignalFromForm()">候補に追加して保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- リアル購入銘柄登録モーダル -->
     <div class="modal fade" id="addStockModal" tabindex="-1" aria-labelledby="addStockModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -489,7 +569,6 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             if (details.Residual_Momentum) lines.push(`${{details.Residual_Momentum}}`);
             
             if (lines.length === 0) {{
-                // yfinanceに基づくデフォルト計算
                 const estATR = (entryP * 0.02).toFixed(0);
                 return `<small class="text-muted">推定ATR: ±${{estATR}}円<br>PER: 14.5倍<br>EPS予想: +12%</small>`;
             }}
@@ -508,7 +587,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             let totalPnlYen = 0;
 
             if (!history || history.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="13" class="text-center text-muted">現在、実測推奨シグナルデータはありません。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" class="text-center text-muted">現在、推奨シグナルデータはありません。「➕ 画面から推奨候補銘柄を追加」ボタンを押して登録できます。</td></tr>';
                 document.getElementById('aiWinRateText').innerText = '0.0%';
                 document.getElementById('aiWinLossText').innerText = '0勝 0敗';
                 document.getElementById('aiReturnText').innerText = '+0円';
@@ -532,10 +611,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 else if (st === 'LOSS') {{ pnlYen = (stopP - entryP) * 100; }}
 
                 const dtFormatted = formatNoYear(item.date);
-                let closedAtFormatted = formatNoYear(item.closed_at);
-                if ((st === 'WIN' || st === 'LOSS') && closedAtFormatted === '-') {{
-                    closedAtFormatted = dtFormatted;
-                }}
+                const closedAtFormatted = formatNoYear(item.closed_at);
                 
                 if (st === 'WIN') {{ wins++; totalClosed++; totalReturnPct += retP; totalPnlYen += pnlYen; }}
                 else if (st === 'LOSS') {{ losses++; totalClosed++; totalReturnPct += retP; totalPnlYen += pnlYen; }}
@@ -552,7 +628,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     <tr>
                         <td><small class="fw-bold">${{dtFormatted}}</small></td>
                         <td><strong>${{item.name || item.ticker_code || item.ticker}}</strong></td>
-                        <td><span class="badge bg-secondary">${{item.score || 65}}点</span></td>
+                        <td><span class="badge bg-secondary">${{item.score || 75}}点</span></td>
                         <td>${{entryP.toLocaleString()}}円</td>
                         <td>${{(simAmt / 10000).toFixed(1)}}万円</td>
                         <td>${{targetP.toLocaleString()}}円</td>
@@ -631,7 +707,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                         <td>${{targetP.toLocaleString()}}円</td>
                         <td>${{stopP.toLocaleString()}}円</td>
                         <td>${{currP.toLocaleString()}}円</td>
-                        <td class="${{pnlCls}}"><strong>${{retSign || pnlSign}}${{Math.round(pnlY).toLocaleString()}}円 (${{pnlSign}}${{pnlP.toFixed(2)}}%)</strong></td>
+                        <td class="${{pnlCls}}"><strong>${{pnlSign}}${{Math.round(pnlY).toLocaleString()}}円 (${{pnlSign}}${{pnlP.toFixed(2)}}%)</strong></td>
                         <td>${{badge}}</td>
                         <td><small class="text-muted">${{closedAtFormatted}}</small></td>
                         <td>${{metricsHTML}}</td>
@@ -645,6 +721,41 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             const totalPnlElem = document.getElementById('totalPnlText');
             totalPnlElem.innerText = totalSign + Math.round(totalPnl).toLocaleString() + '円';
             totalPnlElem.className = 'display-5 fw-bold ' + (totalPnl >= 0 ? 'text-success' : 'text-danger');
+        }}
+
+        async function addSignalFromForm() {{
+            const ticker = document.getElementById('inputSignalTicker').value.trim();
+            let name = document.getElementById('inputSignalName').value.trim();
+            const entryPrice = parseFloat(document.getElementById('inputSignalEntryPrice').value);
+            const targetPriceRaw = document.getElementById('inputSignalTargetPrice').value;
+            const stopPriceRaw = document.getElementById('inputSignalStopPrice').value;
+            const theme = document.getElementById('inputSignalTheme').value.trim();
+
+            if (!ticker || isNaN(entryPrice)) {{
+                alert('銘柄コードと推奨時株価を入力してください。');
+                return;
+            }}
+
+            const targetPrice = targetPriceRaw ? parseFloat(targetPriceRaw) : null;
+            const stopPrice = stopPriceRaw ? parseFloat(stopPriceRaw) : null;
+
+            try {{
+                const res = await fetch('/api/history', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ 
+                        ticker, name, entry_price: entryPrice, target_price: targetPrice, stop_loss_price: stopPrice, theme: theme || '自分で見たい候補' 
+                    }})
+                }});
+                if (res.ok) {{
+                    const modalElem = document.getElementById('addSignalModal');
+                    const modal = bootstrap.Modal.getInstance(modalElem);
+                    if (modal) modal.hide();
+                    document.getElementById('addSignalForm').reset();
+                    renderAIHistory();
+                    return;
+                }}
+            }} catch(e) {{}}
         }}
 
         async function addRealStockFromForm() {{
@@ -675,19 +786,6 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     return;
                 }}
             }} catch(e) {{}}
-
-            const newItem = {{
-                id: 'user_' + Date.now(),
-                ticker, name: name || ticker, buy_date: buyDate, buy_price: buyPrice, shares, current_price: buyPrice
-            }};
-            const portfolio = getLocalPortfolio();
-            portfolio.push(newItem);
-            saveLocalPortfolio(portfolio);
-
-            const modalElem = document.getElementById('addStockModal');
-            const modal = bootstrap.Modal.getInstance(modalElem);
-            if (modal) modal.hide();
-            document.getElementById('addStockForm').reset();
         }}
 
         async function deleteRealStock(itemId) {{
@@ -699,10 +797,6 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                         return;
                     }}
                 }} catch(e) {{}}
-
-                const portfolio = getLocalPortfolio();
-                const newPort = portfolio.filter((item, idx) => item.id !== itemId && idx !== parseInt(itemId));
-                saveLocalPortfolio(newPort);
             }}
         }}
 
@@ -715,10 +809,6 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                         return;
                     }}
                 }} catch(e) {{}}
-
-                const history = getLocalHistory();
-                const newHist = history.filter((item, idx) => item.id !== signalId && idx !== parseInt(signalId));
-                saveLocalHistory(newHist);
             }}
         }}
 

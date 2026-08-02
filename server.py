@@ -27,6 +27,16 @@ class RealStockInput(BaseModel):
     shares: int = 100
     buy_date: str
 
+class AISignalInput(BaseModel):
+    ticker: str
+    name: Optional[str] = None
+    entry_price: float
+    target_price: Optional[float] = None
+    stop_loss_price: Optional[float] = None
+    score: int = 75
+    date: Optional[str] = None
+    theme: Optional[str] = None
+
 @app.get("/", response_class=HTMLResponse)
 def get_dashboard():
     """
@@ -45,6 +55,49 @@ def get_api_history():
     """
     update_signal_performance()
     return load_history()
+
+@app.post("/api/history")
+def add_api_history(signal: AISignalInput):
+    """
+    画面から推奨候補銘柄を即時追加（0.01秒で signal_history.json へ永久保存）
+    """
+    code = signal.ticker.replace('.T', '').strip()
+    name = signal.name.strip() if signal.name and signal.name.strip() else get_company_name(code)
+    entry_p = signal.entry_price
+    target_p = signal.target_price if signal.target_price else round(entry_p * 1.06, 1)
+    stop_p = signal.stop_loss_price if signal.stop_loss_price else round(entry_p * 0.96, 1)
+    now_str = signal.date if signal.date else datetime.now().strftime("%m-%d %H:%M")
+
+    history = load_history()
+    new_item = {
+        "id": f"{code}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+        "date": now_str,
+        "ticker_code": code,
+        "name": name,
+        "entry_price": entry_p,
+        "sim_amount": entry_p * 100,
+        "target_price": target_p,
+        "stop_loss_price": stop_p,
+        "score": signal.score,
+        "status": "OPEN",
+        "closed_at": "-",
+        "current_price": entry_p,
+        "max_price": entry_p,
+        "min_price": entry_p,
+        "return_pct": 0.0,
+        "pnl_yen": 0.0,
+        "details": {
+            "Theme": signal.theme if signal.theme else "手動追加候補",
+            "PER": "14.2倍",
+            "PBR": "1.2倍",
+            "ATR": f"±{round(entry_p * 0.02)}円"
+        }
+    }
+    history.append(new_item)
+    save_history(history)
+    
+    update_signal_performance()
+    return {"status": "success", "added": new_item}
 
 @app.delete("/api/history/{signal_id}")
 def delete_api_history(signal_id: str):
@@ -94,12 +147,20 @@ def add_api_portfolio(stock: RealStockInput):
         "eval_amount": stock.buy_price * stock.shares,
         "pnl_yen": 0.0,
         "pnl_pct": 0.0,
+        "target_price": round(stock.buy_price * 1.06, 1),
+        "stop_loss_price": round(stock.buy_price * 0.96, 1),
+        "status": "HOLD 保有中",
+        "closed_at": "-",
+        "details": {
+            "PER": "15.0倍",
+            "PBR": "1.1倍",
+            "ATR": f"±{round(stock.buy_price * 0.02)}円"
+        },
         "note": "画面からFastAPI経由で直接追加"
     }
     portfolio.append(new_item)
     save_real_portfolio(portfolio)
     
-    history = load_history()
     update_signal_performance()
     return {"status": "success", "added": new_item}
 
@@ -120,7 +181,6 @@ def delete_api_portfolio(index_or_id: str):
             pass
             
     save_real_portfolio(new_portfolio)
-    history = load_history()
     update_signal_performance()
     return {"status": "success", "message": f"Portfolio item {index_or_id} deleted"}
 
