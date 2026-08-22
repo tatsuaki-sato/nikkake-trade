@@ -37,11 +37,15 @@
 - スキャナー(`modules/*`)とWeb API(`server.py`)は、どちらも同じ`common/performance_tracker.py`の関数を呼ぶだけなので、データの持ち方は完全に一本化されている。
 - `dashboard.html`と`index.html`は**生成物**。`generate_html_dashboard()`が呼ばれるたびに同じ内容で両方とも上書きされる(データはインラインJSの`serverHistory`/`serverPortfolio`として埋め込まれる)。直接編集しても次の実行で消える。
 
-## データの永続化(2系統・自動フォールバック)
+## データの永続化
 
-- `SUPABASE_URL`が環境変数にあれば → Supabase(REST API経由、PostgreSQLパスワード不要)に読み書き。DB操作が例外を投げた場合は自動的に下のJSONファイルにフォールバックする。
-- なければ → `data/signal_history.json`(AI推奨シグナル)、`data/real_portfolio.json`(リアル購入ポートフォリオ)にJSONで読み書き。
-- `data/cache.json`は上記とは別系統で、常にファイルベースのTTLキャッシュ(マクロ指標・EDINET開示情報などの取得結果をキャッシュし、API叩きすぎを防止)。
+Supabaseが正(single source of truth)。`SUPABASE_URL`/`SUPABASE_KEY`は本番(Render)・GitHub Actions(`daily_scanner`/`prediction`/`weekly_performance`、DBに書き込むワークフローのみ)双方にSecretsとして設定済みで、常にDBへ読み書きする。DB操作が例外を投げた場合のみ`data/signal_history.json`/`data/real_portfolio.json`への書き込みにフォールバックする(ローカルで`SUPABASE_URL`未設定のまま動かす場合も同様にこのJSONフォールバックが使われる)。
+
+`intraday_alert.yml`は通知専用でデータ永続化を一切行わないため、Supabaseの認証情報を渡していない。
+
+`data/cache.json`は上記とは別系統で、常にファイルベースのTTLキャッシュ(マクロ指標・EDINET開示情報などの取得結果をキャッシュし、API叩きすぎを防止)。
+
+過去に`weekly_performance.yml`が`data/signal_history.json`/`dashboard.html`を`main`へ直接push していた時期があり、リポジトリ内の`data/*.json`にはその名残の古いスナップショットが残っている。現在はSupabaseが正なので、これらのファイルは「ローカルでSupabase未設定のまま動かした場合のフォールバック先」以上の意味を持たない。
 
 ## シグナルのライフサイクル
 
@@ -74,7 +78,7 @@ cron時刻はUTC表記(括弧内がJST)。
 | `intraday_alert.yml` | 平日 00:00–06:59 UTC(09:00–15:59 JST) 5分おき | 5分足で出来高急増(前足比10倍以上)＋陽線を検知しアラート通知のみ(シグナル記録はしない) |
 | `prediction.yml` | 23:00 UTC(08:00 JST) | 朝の「未来予測」。スコア60点以上 かつ (スクイーズ解除 or 強モメンタム or EDINET開示)でシグナル記録 |
 | `daily_scanner.yml` | 06:30 UTC(15:30 JST、大引け後) | 場後の「事後分析」。スコア70点以上でシグナル記録 |
-| `weekly_performance.yml` | 土曜 01:00 UTC(10:00 JST) | 週次勝率レポートをLINE送信。さらに`data/signal_history.json`と`dashboard.html`を`main`ブランチへ直接コミット・push(`[skip ci]`) |
+| `weekly_performance.yml` | 土曜 01:00 UTC(10:00 JST) | 週次勝率レポートをLINE送信 |
 
 `daily_scanner`・`prediction`ともに、70点/60点条件を満たす銘柄が1つもなければ「注目テーマTOP3」の代表銘柄をスコア65固定で自動記録するフォールバック動作になっている(ウォッチリストが少ないため、毎日何かしらシグナルが記録される設計)。
 
@@ -107,7 +111,7 @@ docker-compose up
 | `LINE_CHANNEL_ACCESS_TOKEN` / `LINE_USER_ID` | LINE通知 | 未設定ならLINE送信スキップ |
 | `DISCORD_WEBHOOK_URL` | Discord通知 | 未設定ならコード内蔵の既定Webhookにフォールバック(要ローテーション、[common/notifier.py](common/notifier.py:11)参照) |
 
-GitHub Actions側は同名のシークレットをリポジトリのSecretsに設定して利用。
+GitHub Actions側は同名のシークレットをリポジトリのSecretsに設定して利用。`SUPABASE_URL`/`SUPABASE_KEY`は`daily_scanner`/`prediction`/`weekly_performance`の3ワークフローに設定(`intraday_alert`はデータ永続化をしないため不要)。
 
 ## デプロイ
 

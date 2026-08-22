@@ -35,11 +35,7 @@ There is no test suite, linter, or build step configured in this repo.
 
 **Data flow:** scheduled scripts (`modules/*`) fetch prices via `yfinance`, score candidates, then call into `common/performance_tracker.py` to persist a signal and regenerate the dashboard. The FastAPI app (`server.py`) is a thin CRUD layer over the same `performance_tracker` functions, so the scanners and the web UI never diverge.
 
-**Storage has two backends, chosen automatically by `common/performance_tracker.py` at import time** based on whether `SUPABASE_URL` is set:
-- If set: reads/writes go through `common/database.py` (Supabase REST client, `supabase-py`, not raw Postgres — no DB password needed).
-- If not set: falls back to local JSON files in `data/` (`signal_history.json`, `real_portfolio.json`).
-- Every DB read/write is wrapped in try/except that falls back to the JSON path on error — so DB and file logic must be kept behaviorally equivalent when changed.
-- `data/cache.json` (via `common/cache_manager.py`) is a separate, always-file-based TTL cache for expensive lookups (macro data, EDINET filings, etc.) — this one is never DB-backed.
+**Supabase is the single source of truth**, read/written through `common/database.py` (REST client via `supabase-py`, not raw Postgres). `SUPABASE_URL`/`SUPABASE_KEY` are set on Render and, as GitHub Actions secrets, on the `daily_scanner`/`prediction`/`weekly_performance` workflows (the ones that call `record_signal`/`update_signal_performance`; `intraday_alert` doesn't persist anything so it has no DB creds). `common/performance_tracker.py` falls back to local JSON files in `data/` (`signal_history.json`, `real_portfolio.json`) only if `SUPABASE_URL` is unset or a DB call throws — that path exists for local dev without Supabase credentials, not as a parallel production store. `data/cache.json` (via `common/cache_manager.py`) is a separate, always-file-based TTL cache for expensive lookups (macro data, EDINET filings, etc.) — this one is never DB-backed.
 
 **`dashboard.html` and `index.html` are generated output, not hand-edited source.** `generate_html_dashboard()` in `common/performance_tracker.py` renders both files identically (one Python f-string dashboard template with the current history/portfolio JSON embedded inline as `serverHistory`/`serverPortfolio` JS constants). It's called after every mutation (add/delete signal or portfolio item, `/api/refresh`, scanner runs) and also on server startup. If you need to change the dashboard UI, edit the template inside `generate_html_dashboard()`, not the HTML files directly — direct edits get overwritten on the next run.
 
@@ -55,4 +51,4 @@ There is no test suite, linter, or build step configured in this repo.
 - `intraday_alert.yml` — every 5 min, 09:00–16:00 JST weekdays
 - `prediction.yml` — 08:00 JST daily
 - `daily_scanner.yml` — 15:30 JST daily
-- `weekly_performance.yml` — Saturday 10:00 JST; this one also commits `data/signal_history.json` and `dashboard.html` straight back to `main` with `[skip ci]` — expect the remote branch to move out from under local clones on Saturdays.
+- `weekly_performance.yml` — Saturday 10:00 JST, sends the win-rate report. It used to also commit `data/signal_history.json`/`dashboard.html` straight back to `main`; that step was removed once Supabase became the source of truth, so `main` no longer moves on its own.
