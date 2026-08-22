@@ -1,0 +1,74 @@
+[
+  {
+    "tier": "core",
+    "reason": "初期固定リスト",
+    "ticker": "7203.T",
+    "added_at": "2026-08-22"
+  },
+  {
+    "tier": "core",
+    "reason": "初期固定リスト",
+    "ticker": "8035.T",
+    "added_at": "2026-08-22"
+  },
+  {
+    "tier": "core",
+    "reason": "初期固定リスト",
+    "ticker": "6758.T",
+    "added_at": "2026-08-22"
+  },
+  {
+    "tier": "core",
+    "reason": "初期固定リスト",
+    "ticker": "8306.T",
+    "added_at": "2026-08-22"
+  },
+  {
+    "tier": "core",
+    "reason": "初期固定リスト",
+    "ticker": "9432.T",
+    "added_at": "2026-08-22"
+  },
+  {
+    "tier": "rotation",
+    "reason": "初期固定リスト",
+    "ticker": "9984.T",
+    "added_at": "2026-08-22"
+  },
+  {
+    "tier": "rotation",
+    "reason": "初期固定リスト",
+    "ticker": "6920.T",
+    "added_at": "2026-08-22"
+  },
+  {
+    "tier": "rotation",
+    "reason": "初期固定リスト",
+    "ticker": "6861.T",
+    "added_at": "2026-08-22"
+  },
+  {
+    "tier": "rotation",
+    "reason": "初期固定リスト",
+    "ticker": "7974.T",
+    "added_at": "2026-08-22"
+  },
+  {
+    "tier": "rotation",
+    "reason": "初期固定リスト",
+    "ticker": "4063.T",
+    "added_at": "2026-08-22"
+  },
+  {
+    "tier": "rotation",
+    "reason": "初期固定リスト",
+    "ticker": "7011.T",
+    "added_at": "2026-08-22"
+  },
+  {
+    "tier": "rotation",
+    "reason": "初期固定リスト",
+    "ticker": "6857.T",
+    "added_at": "2026-08-22"
+  }
+]
