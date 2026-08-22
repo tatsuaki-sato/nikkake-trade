@@ -631,8 +631,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                                     <th>企業名 (コード)</th>
                                     <th>スコア</th>
                                     <th>推奨株価 (100株購入額)</th>
-                                    <th>目標利確</th>
-                                    <th>損切り</th>
+                                    <th>目標利確 / 損切り</th>
                                     <th>最新/最終株価</th>
                                     <th>100株損益額 (%)</th>
                                     <th>ステータス</th>
@@ -684,8 +683,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                                     <th>企業名 (コード)</th>
                                     <th>スコア</th>
                                     <th>買付単価 (100株購入額)</th>
-                                    <th>目標利確</th>
-                                    <th>損切り</th>
+                                    <th>目標利確 / 損切り</th>
                                     <th>最新株価</th>
                                     <th>100株損益額 (%)</th>
                                     <th>ステータス</th>
@@ -901,7 +899,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             let totalPnlYen = 0;
 
             if (!history || history.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted">現在、推奨シグナルデータはありません。「➕ 画面から推奨候補銘柄を追加」ボタンを押して登録できます。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">現在、推奨シグナルデータはありません。「➕ 画面から推奨候補銘柄を追加」ボタンを押して登録できます。</td></tr>';
                 document.getElementById('aiWinRateText').innerText = '0.0%';
                 document.getElementById('aiWinLossText').innerText = '0件到達 0件到達';
                 document.getElementById('aiReturnText').innerText = '+0円';
@@ -947,10 +945,9 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     <tr>
                         <td><small class="fw-bold">${{dtFormatted}}</small></td>
                         <td><strong>${{item.name || item.ticker_code || item.ticker}}</strong></td>
-                        <td><span class="badge bg-secondary">${{item.score || 75}}点</span></td>
+                        <td><span class="badge bg-secondary fs-6">${{item.score || 75}}点</span></td>
                         <td><strong>${{entryP.toLocaleString()}}円</strong><br><small class="text-muted">(${{(simAmt / 10000).toFixed(1)}}万円)</small></td>
-                        <td>${{targetP.toLocaleString()}}円</td>
-                        <td>${{stopP.toLocaleString()}}円</td>
+                        <td><small class="text-success">🎯 ${{targetP.toLocaleString()}}円</small><br><small class="text-danger">🛑 ${{stopP.toLocaleString()}}円</small></td>
                         <td>${{priceCol}}</td>
                         <td class="${{retCls}}">${{pnlCol}}</td>
                         <td>${{statusCol}}</td>
@@ -984,7 +981,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             let totalPnl = 0;
 
             if (!portfolio || portfolio.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted">現在、実際の購入保有銘柄はありません。「➕ 画面から購入銘柄を即時追加」ボタンを押して登録してください。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">現在、実際の購入保有銘柄はありません。「➕ 画面から購入銘柄を即時追加」ボタンを押して登録してください。</td></tr>';
                 document.getElementById('totalInvestText').innerText = '0.0万円';
                 document.getElementById('totalPnlText').innerText = '+0円';
                 return;
@@ -1025,10 +1022,9 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     <tr>
                         <td><small class="fw-bold">${{bDtFormatted}}</small></td>
                         <td><strong>${{item.name || item.ticker}}</strong></td>
-                        <td><span class="badge bg-secondary">${{item.score || 70}}点</span></td>
+                        <td><span class="badge bg-secondary fs-6">${{item.score || 70}}点</span></td>
                         <td><strong>${{buyP.toLocaleString()}}円</strong><br><small class="text-muted">(${{(invest / 10000).toFixed(1)}}万円)</small></td>
-                        <td>${{targetP.toLocaleString()}}円</td>
-                        <td>${{stopP.toLocaleString()}}円</td>
+                        <td><small class="text-success">🎯 ${{targetP.toLocaleString()}}円</small><br><small class="text-danger">🛑 ${{stopP.toLocaleString()}}円</small></td>
                         <td>${{priceCol}}</td>
                         <td class="${{pnlCls}}">${{pnlCol}}</td>
                         <td>${{statusCol}}</td>
