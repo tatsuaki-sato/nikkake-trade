@@ -73,6 +73,8 @@ DB操作が実際にJSONへフォールバックした回(=Supabase接続エラ�
 
 スコア加点には含まれないが、`modules/post_analysis/advanced_scraper.py`の`get_stock_financial_perks()`(yfinance + Kabutanスクレイピング、7日キャッシュ)で配当利回り・株主優待情報も取得し、シグナルの`details`に`配当利回り`/`株主優待`として保存している(スコア条件を満たした銘柄・注目テーマのフォールバック銘柄いずれも)。ダッシュボードの「指標」列に表示される。
 
+既存シグナルへの遡及反映(バックフィル)は`update_signal_performance()`が毎回試みるが、**記録日と同じ日にはまだ反映されない**([common/performance_tracker.py:312](common/performance_tracker.py:312)、`df_after`(記録日以降の株価データ)が空だと`continue`でバックフィル処理自体がスキップされるため)。翌営業日以降にリフレッシュされて初めて配当・優待・PER等が埋まる。
+
 ## 自動実行ジョブ(GitHub Actions, `.github/workflows/`)
 
 cron時刻はUTC表記(括弧内がJST)。

@@ -150,6 +150,23 @@ def calculate_real_atr(df: pd.DataFrame) -> float:
     except Exception:
         return 0.0
 
+def _get_cached_yutai_info(ticker: str) -> str:
+    """
+    株主優待情報を取得(7日キャッシュ)。
+    daily_scanner.py/trend_predictor.pyのget_cached_financial_perks()と
+    同じキャッシュキー(perks_{ticker})を使うため、スキャナー側で既に
+    キャッシュ済みならスクレイピングし直さない。
+    """
+    from common.cache_manager import get_cached_item, set_cached_item
+    cache_key = f"perks_{ticker}"
+    cached = get_cached_item(cache_key, ttl_seconds=604800)
+    if cached:
+        return cached.get('yutai_info', 'なし')
+    from modules.post_analysis.advanced_scraper import get_stock_financial_perks
+    data = get_stock_financial_perks(ticker)
+    set_cached_item(cache_key, data)
+    return data.get('yutai_info', 'なし')
+
 def fetch_real_stock_metrics(code: str, df: pd.DataFrame) -> dict:
     symbol = code + ".T" if not code.endswith(".T") else code
     metrics = {}
@@ -343,6 +360,8 @@ def update_signal_performance(force_refresh: bool = False):
                 for k, v in real_m.items():
                     if k not in item["details"] or "ダミー" in str(item["details"][k]):
                         item["details"][k] = v
+                if "株主優待" not in item["details"] or item["details"]["株主優待"] == "なし":
+                    item["details"]["株主優待"] = _get_cached_yutai_info(symbol)
             else:
                 item["status"] = "OPEN"
                 item["closed_at"] = "-"
@@ -448,6 +467,8 @@ def update_signal_performance(force_refresh: bool = False):
                 for k, v in real_m.items():
                     if k not in item["details"] or "ダミー" in str(item["details"][k]):
                         item["details"][k] = v
+                if "株主優待" not in item["details"] or item["details"]["株主優待"] == "なし":
+                    item["details"]["株主優待"] = _get_cached_yutai_info(symbol)
             else:
                 item["status"] = "HOLD 保有中"
                 item["closed_at"] = "-"
