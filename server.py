@@ -15,6 +15,7 @@ from common.performance_tracker import (
     update_signal_performance, generate_html_dashboard
 )
 from common.stock_names import get_company_name
+from common.watchlist import load_watchlist, add_ticker, remove_ticker
 
 app = FastAPI(title="nikkake-trade - AI Signal & Real Portfolio Web App")
 
@@ -58,6 +59,28 @@ class AISignalInput(BaseModel):
     score: int = 75
     date: Optional[str] = None
     theme: Optional[str] = None
+
+class WatchlistInput(BaseModel):
+    ticker: str
+    tier: str = "rotation"
+    reason: str = "手動追加"
+
+@app.get("/api/watchlist")
+def get_api_watchlist():
+    """スキャン対象ウォッチリストを取得"""
+    return load_watchlist()
+
+@app.post("/api/watchlist")
+def add_api_watchlist(item: WatchlistInput):
+    """ウォッチリストに銘柄を追加"""
+    items = add_ticker(item.ticker, tier=item.tier, reason=item.reason)
+    return {"status": "ok", "watchlist": items}
+
+@app.delete("/api/watchlist/{ticker}")
+def delete_api_watchlist(ticker: str):
+    """ウォッチリストから銘柄を削除"""
+    items = remove_ticker(ticker)
+    return {"status": "ok", "watchlist": items}
 
 @app.get("/", response_class=HTMLResponse)
 def get_dashboard(background_tasks: BackgroundTasks):

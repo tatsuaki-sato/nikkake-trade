@@ -7,25 +7,26 @@ import time
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from common.notifier import notify
-
-TARGET_TICKERS = [
-    "7203.T", "9984.T", "6920.T", "8035.T", "6861.T" # テスト用にしぼる
-]
+from common.watchlist import get_target_tickers
 
 def run_intraday_alert(vol_spike_multiplier: float = 10.0):
     """
     場中（9:00〜15:00）に定期実行され、5分足ベースで突発的な出来高急増を検知する
     """
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] リアルタイム検知（分足スパイク）起動...")
-    
+
+    # このワークフローにはDB認証情報が無いためフォールバックのデフォルトリストになる。
+    # ウォッチリストをDBで更新した場合は intraday_alert.yml にも Secrets を追加すること。
+    target_tickers = get_target_tickers()
+
     try:
         # 1日のデータを5分足で取得
-        data = yf.download(TARGET_TICKERS, period="1d", interval="5m", group_by="ticker", progress=False)
+        data = yf.download(target_tickers, period="1d", interval="5m", group_by="ticker", progress=False)
     except Exception as e:
         print(f"データ取得エラー: {e}")
         return
 
-    for ticker in TARGET_TICKERS:
+    for ticker in target_tickers:
         try:
             df = data[ticker].copy()
             if len(df) < 2:

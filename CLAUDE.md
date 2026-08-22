@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-nikkake-trade is a Japanese stock ("日本株") signal-scanning and paper-trading dashboard. Scheduled jobs scan a fixed watchlist of tickers, score them with a quant/sentiment engine, record "AI推奨シグナル" (AI-recommended entries) as paper trades, track their price performance over time, and notify LINE/Discord. A FastAPI server exposes the same data as a live dashboard and lets the user manually add/remove AI signals and real (actually-purchased) portfolio positions.
+nikkake-trade is a Japanese stock ("日本株") signal-scanning and paper-trading dashboard. Scheduled jobs scan a watchlist of tickers (managed by `common/watchlist.py`: Supabase `watchlist` table → `data/watchlist.json` → hardcoded default, with `tier: core/rotation` per ticker), score them with a quant/sentiment engine, record "AI推奨シグナル" (AI-recommended entries) as paper trades, track their price performance over time, and notify LINE/Discord. A FastAPI server exposes the same data as a live dashboard and lets the user manually add/remove AI signals, watchlist tickers (`/api/watchlist`), and real (actually-purchased) portfolio positions. `common/market_data.py` wraps the J-Quants API V2 (JPX official; `JQUANTS_API_KEY`, x-api-key header, 12-week-delayed Free plan) for universe/factor/backtest data — current-day prices still come from yfinance.
 
 See [README.md](README.md) for the full spec: scoring formula breakdown, per-workflow cron schedule and thresholds, API endpoints, and env vars. This file only covers what you need to work in the code.
 

@@ -14,10 +14,8 @@ from modules.post_analysis.advanced_scraper import get_x_sentiment_score, get_ka
 from modules.post_analysis.quant_analyzer import evaluate_quant_factors
 from common.quant_math import calculate_atr
 
-TARGET_TICKERS = [
-    "7203.T", "9984.T", "6920.T", "8035.T", "6861.T", 
-    "7974.T", "6758.T", "9432.T", "8306.T", "4063.T", "7011.T", "6857.T"
-]
+from common.watchlist import get_target_tickers
+
 BENCHMARK_TICKER = "1321.T"
 
 def get_cached_financial_perks(ticker: str, close_price: float) -> dict:
@@ -74,8 +72,9 @@ def run_daily_scanner():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 売買判断ダッシュボード付きクオンツ事後分析起動...")
     
     update_signal_performance()
-    
-    tickers_to_fetch = TARGET_TICKERS + [BENCHMARK_TICKER]
+
+    target_tickers = get_target_tickers()
+    tickers_to_fetch = target_tickers + [BENCHMARK_TICKER]
     try:
         data = yf.download(tickers_to_fetch, period="1y", group_by="ticker", progress=False)
     except Exception as e:
@@ -85,7 +84,7 @@ def run_daily_scanner():
     market_df = data[BENCHMARK_TICKER].copy().dropna() if data is not None and BENCHMARK_TICKER in data else None
     hit_list = []
     
-    for ticker in TARGET_TICKERS:
+    for ticker in target_tickers:
         try:
             if data is None or ticker not in data:
                 continue

@@ -31,6 +31,7 @@ def init_db():
         sb = get_client()
         sb.table("signal_history").select("id").limit(1).execute()
         sb.table("real_portfolio").select("id").limit(1).execute()
+        sb.table("watchlist").select("id").limit(1).execute()
         print("✅ Supabase 接続確認 OK")
     except Exception as e:
         print(f"⚠️ Supabase 接続確認 NG: {e}")
@@ -68,6 +69,33 @@ def db_delete_signal(signal_id: str) -> bool:
     """IDでシグナルを削除"""
     sb = get_client()
     resp = sb.table("signal_history").delete().eq("id", signal_id).execute()
+    return True
+
+# ─── Watchlist CRUD ─────────────────────────────────────────────────────────
+
+def db_load_watchlist() -> list:
+    """ウォッチリスト全件を created_at 昇順で返す"""
+    sb = get_client()
+    resp = sb.table("watchlist").select("data").order("created_at", desc=False).execute()
+    return [row["data"] for row in (resp.data or [])]
+
+def db_save_watchlist(items: list):
+    """ウォッチリスト全件を upsert"""
+    sb = get_client()
+    sb.table("watchlist").delete().neq("id", "___never___").execute()
+    if items:
+        rows = [{"id": item["ticker"], "data": item} for item in items]
+        sb.table("watchlist").upsert(rows).execute()
+
+def db_add_watchlist_item(item: dict):
+    """ウォッチリスト銘柄を1件追加"""
+    sb = get_client()
+    sb.table("watchlist").upsert({"id": item["ticker"], "data": item}).execute()
+
+def db_delete_watchlist_item(ticker: str) -> bool:
+    """ティッカーでウォッチリスト銘柄を削除"""
+    sb = get_client()
+    sb.table("watchlist").delete().eq("id", ticker).execute()
     return True
 
 # ─── Real Portfolio CRUD ────────────────────────────────────────────────────
