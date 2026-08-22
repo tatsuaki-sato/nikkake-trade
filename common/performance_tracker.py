@@ -309,48 +309,47 @@ def update_signal_performance(force_refresh: bool = False):
                     df_after = df[df.index >= rec_dt]
                 except Exception:
                     df_after = pd.DataFrame()
-                    
-                if df_after.empty:
-                    item["status"] = "OPEN"
-                    item["closed_at"] = "-"
-                    item["return_pct"] = 0.0
-                    item["pnl_yen"] = 0.0
-                    item["current_price"] = entry_p
-                    continue
 
-                high_price = float(df_after["High"].max())
-                low_price = float(df_after["Low"].min())
-                latest_close = float(df_after["Close"].iloc[-1])
-                
+                # 記録日以降のローソク足がまだ無くても(当日中・休場明け前)、
+                # 直近の終値・指標は必ず反映する。WIN/LOSS判定だけはdf_afterが要る。
+                latest_close = float(df["Close"].iloc[-1])
                 item["current_price"] = round(latest_close, 1)
-                item["max_price"] = round(max(item.get("max_price", entry_p), high_price), 1)
-                item["min_price"] = round(min(item.get("min_price", entry_p), low_price), 1)
-                
                 item["return_pct"] = round(((latest_close - entry_p) / entry_p) * 100, 2)
                 item["pnl_yen"] = round((latest_close - entry_p) * 100, 0)
-                
-                trigger_closed_at = None
-                trigger_status = None
-                
-                for idx, row in df_after.iterrows():
-                    r_high = float(row["High"])
-                    r_low = float(row["Low"])
-                    dt_obj = pd.to_datetime(idx)
-                    dt_formatted = dt_obj.strftime("%m-%d 15:30")
-                    
-                    if r_low <= stop_p:
-                        trigger_status = "LOSS"
-                        trigger_closed_at = dt_formatted
-                        break
-                    elif r_high >= target_p:
-                        trigger_status = "WIN"
-                        trigger_closed_at = dt_formatted
-                        break
-                
-                if trigger_status:
-                    item["status"] = trigger_status
-                    item["closed_at"] = trigger_closed_at if trigger_closed_at else now_time_str
+
+                if not df_after.empty:
+                    high_price = float(df_after["High"].max())
+                    low_price = float(df_after["Low"].min())
+                    item["max_price"] = round(max(item.get("max_price", entry_p), high_price), 1)
+                    item["min_price"] = round(min(item.get("min_price", entry_p), low_price), 1)
+
+                    trigger_closed_at = None
+                    trigger_status = None
+
+                    for idx, row in df_after.iterrows():
+                        r_high = float(row["High"])
+                        r_low = float(row["Low"])
+                        dt_obj = pd.to_datetime(idx)
+                        dt_formatted = dt_obj.strftime("%m-%d 15:30")
+
+                        if r_low <= stop_p:
+                            trigger_status = "LOSS"
+                            trigger_closed_at = dt_formatted
+                            break
+                        elif r_high >= target_p:
+                            trigger_status = "WIN"
+                            trigger_closed_at = dt_formatted
+                            break
+
+                    if trigger_status:
+                        item["status"] = trigger_status
+                        item["closed_at"] = trigger_closed_at if trigger_closed_at else now_time_str
+                    else:
+                        item["status"] = "OPEN"
+                        item["closed_at"] = "-"
                 else:
+                    item["max_price"] = round(max(item.get("max_price", entry_p), latest_close), 1)
+                    item["min_price"] = round(min(item.get("min_price", entry_p), latest_close), 1)
                     item["status"] = "OPEN"
                     item["closed_at"] = "-"
 
@@ -428,35 +427,35 @@ def update_signal_performance(force_refresh: bool = False):
                     df_after = df[df.index >= rec_dt]
                 except Exception:
                     df_after = pd.DataFrame()
-                    
-                if df_after.empty:
-                    item["status"] = "HOLD 保有中"
-                    item["closed_at"] = "-"
-                    item["pnl_yen"] = 0.0
-                    item["pnl_pct"] = 0.0
-                    continue
-                
-                trigger_closed_at = None
-                trigger_status = None
-                
-                for idx, row in df_after.iterrows():
-                    r_high = float(row["High"])
-                    r_low = float(row["Low"])
-                    dt_obj = pd.to_datetime(idx)
-                    dt_formatted = dt_obj.strftime("%m-%d 15:30")
-                    
-                    if r_low <= stop_p:
-                        trigger_status = "LOSS 損切"
-                        trigger_closed_at = dt_formatted
-                        break
-                    elif r_high >= target_p:
-                        trigger_status = "WIN 利確"
-                        trigger_closed_at = dt_formatted
-                        break
-                
-                if trigger_status:
-                    item["status"] = trigger_status
-                    item["closed_at"] = trigger_closed_at if trigger_closed_at else now_time_str
+
+                # current_price/pnl は上ですでに最新終値で計算済み。
+                # 購入日以降のローソク足(df_after)が無くてもそれは維持し、
+                # WIN/LOSS判定だけスキップする(AI推奨シグナル側と同じ扱い)。
+                if not df_after.empty:
+                    trigger_closed_at = None
+                    trigger_status = None
+
+                    for idx, row in df_after.iterrows():
+                        r_high = float(row["High"])
+                        r_low = float(row["Low"])
+                        dt_obj = pd.to_datetime(idx)
+                        dt_formatted = dt_obj.strftime("%m-%d 15:30")
+
+                        if r_low <= stop_p:
+                            trigger_status = "LOSS 損切"
+                            trigger_closed_at = dt_formatted
+                            break
+                        elif r_high >= target_p:
+                            trigger_status = "WIN 利確"
+                            trigger_closed_at = dt_formatted
+                            break
+
+                    if trigger_status:
+                        item["status"] = trigger_status
+                        item["closed_at"] = trigger_closed_at if trigger_closed_at else now_time_str
+                    else:
+                        item["status"] = "HOLD 保有中"
+                        item["closed_at"] = "-"
                 else:
                     item["status"] = "HOLD 保有中"
                     item["closed_at"] = "-"
