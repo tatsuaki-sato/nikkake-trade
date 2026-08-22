@@ -12,6 +12,7 @@ from common.performance_tracker import record_signal, update_signal_performance,
 from common.stock_names import get_company_name
 from modules.post_analysis.advanced_scraper import get_x_sentiment_score, get_kabutan_news, get_market_trending_themes, get_stock_financial_perks
 from modules.post_analysis.quant_analyzer import evaluate_quant_factors
+from common.quant_math import calculate_atr
 
 TARGET_TICKERS = [
     "7203.T", "9984.T", "6920.T", "8035.T", "6861.T", 
@@ -62,7 +63,7 @@ def record_theme_candidates(theme_details: list, fetched_data: pd.DataFrame):
                     target_p = close_p + (3.0 * atr)
                     stop_p = max(close_p - (2.0 * atr), 0)
                     record_signal(ticker, close_p, target_p, stop_p, score=65, details={
-                        "Theme": f"【注目テーマTOP3】{theme_name}",
+                        "Theme": f"【市場注目ランキング】{theme_name}",
                         "配当利回り": perks.get('dividend_yield', 'データなし'),
                         "株主優待": perks.get('yutai_info', 'なし')
                     })
@@ -108,7 +109,7 @@ def run_predictor():
                 perks = get_cached_financial_perks(ticker, close_price)
                 trade_plan = quant_result.get('trade_plan', {})
                 
-                atr_series = stock_df['Close'].diff().abs().rolling(14).mean()
+                atr_series = calculate_atr(stock_df)
                 atr = float(atr_series.iloc[-1]) if not pd.isna(atr_series.iloc[-1]) else close_price * 0.02
                 target_p = close_price + (3.0 * atr)
                 stop_p = max(close_price - (2.0 * atr), 0)
@@ -161,17 +162,22 @@ def run_predictor():
             
         notify(_with_fallback_warning(notify_text))
     else:
-        theme_details = get_market_trending_themes()
-        record_theme_candidates(theme_details, data)
-        
+        theme_details, themes_from_fallback = get_market_trending_themes()
+
         notify_text = "🔮 **【クオンツ未来予測 ＆ トレンドテーマ】**\n"
-        notify_text += "本日ブレイクアウト条件を満たす特定銘柄は検出されませんでしたが、現在市場で最も関心を集めている注目テーマと代表的な関連株は以下の通りです：\n\n"
-        notify_text += "🌟 **【市場注目テーマ TOP 5 ＆ 関連代表株】**\n"
+        if themes_from_fallback:
+            notify_text += "本日ブレイクアウト条件を満たす特定銘柄は検出されませんでした。\n"
+            notify_text += "⚠️ 株探ランキングの取得にも失敗したため、以下は市場実勢を反映しない固定の参考リストです(トラッキング登録はスキップ)：\n\n"
+        else:
+            record_theme_candidates(theme_details, data)
+            notify_text += "本日ブレイクアウト条件を満たす特定銘柄は検出されませんでしたが、株探ランキングで現在市場が注目している銘柄グループは以下の通りです：\n\n"
+        notify_text += "🌟 **【市場注目ランキング ＆ 代表銘柄】**\n"
         for i, item in enumerate(theme_details[:5], 1):
             stocks_str = ", ".join(item['stocks'])
-            notify_text += f"{i}. **{item['theme']}**\n   └ 関連代表銘柄: {stocks_str}\n"
-        notify_text += "\n※全注目テーマの代表銘柄は、全自動で【AI実測トラッキングデータベース】へ登録・勝敗追跡中。"
-        
+            notify_text += f"{i}. **{item['theme']}**\n   └ 上位銘柄: {stocks_str}\n"
+        if not themes_from_fallback:
+            notify_text += "\n※上記の上位銘柄は、全自動で【AI実測トラッキングデータベース】へ登録・勝敗追跡中。"
+
         notify(_with_fallback_warning(notify_text))
 
 if __name__ == "__main__":
