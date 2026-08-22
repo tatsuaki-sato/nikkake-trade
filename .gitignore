@@ -9,6 +9,10 @@ __pycache__/
 # Secrets
 .env
 
+# Regenerable TTL cache (common/cache_manager.py) - can grow to MBs once
+# J-Quants universe-wide lookups are cached; no value in git history.
+data/cache.json
+
 # IDEs
 .vscode/
 .idea/
