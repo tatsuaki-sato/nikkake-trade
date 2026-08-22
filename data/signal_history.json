@@ -8,10 +8,10 @@
     "stop_loss_price": 2820.0,
     "score": 85,
     "status": "OPEN",
-    "current_price": 3020.0,
+    "current_price": 3132.0,
     "max_price": 3233.0,
     "min_price": 2686.0,
-    "return_pct": 0.67,
+    "return_pct": 4.4,
     "details": {
       "Residual_Momentum": "テスト",
       "PER": "10.4倍",
@@ -21,7 +21,7 @@
       "ATR": "±80円"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": 2000.0,
+    "pnl_yen": 13200.0,
     "closed_at": "-"
   },
   {
@@ -35,10 +35,10 @@
     "stop_loss_price": 53280.0,
     "score": 65,
     "status": "LOSS",
-    "current_price": 59130.0,
+    "current_price": 54290.0,
     "max_price": 81260.0,
     "min_price": 43980.0,
-    "return_pct": 6.54,
+    "return_pct": -2.18,
     "details": {
       "Theme": "【注目テーマTOP3】半導体",
       "PER": "44.4倍",
@@ -48,7 +48,7 @@
       "ATR": "±4904円"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": 363000.0,
+    "pnl_yen": -121000.0,
     "closed_at": "08-03 15:30"
   },
   {
@@ -62,10 +62,10 @@
     "stop_loss_price": 36393.6,
     "score": 65,
     "status": "WIN",
-    "current_price": 38820.0,
+    "current_price": 35120.0,
     "max_price": 58349.2,
     "min_price": 33200.0,
-    "return_pct": 2.4,
+    "return_pct": -7.36,
     "details": {
       "Theme": "【注目テーマTOP3】半導体",
       "PER": "39.2倍",
@@ -75,7 +75,7 @@
       "ATR": "±3937円"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": 91000.0,
+    "pnl_yen": -279000.0,
     "closed_at": "08-03 15:30"
   },
   {
@@ -89,10 +89,10 @@
     "stop_loss_price": 31200.0,
     "score": 65,
     "status": "LOSS",
-    "current_price": 36870.0,
+    "current_price": 35900.0,
     "max_price": 38730.0,
     "min_price": 24135.0,
-    "return_pct": 13.45,
+    "return_pct": 10.46,
     "details": {
       "Theme": "【注目テーマTOP3】半導体",
       "PER": "62.9倍",
@@ -102,7 +102,7 @@
       "ATR": "±2663円"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": 437000.0,
+    "pnl_yen": 340000.0,
     "closed_at": "08-03 15:30"
   },
   {
@@ -116,10 +116,10 @@
     "stop_loss_price": 5049.6,
     "score": 65,
     "status": "WIN",
-    "current_price": 5739.0,
+    "current_price": 5255.0,
     "max_price": 9074.0,
     "min_price": 4500.0,
-    "return_pct": 9.11,
+    "return_pct": -0.1,
     "details": {
       "Theme": "【注目テーマTOP3】AI・データセンター",
       "PER": "6.0倍",
@@ -129,7 +129,7 @@
       "ATR": "±451円"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": 47900.0,
+    "pnl_yen": -500.0,
     "closed_at": "08-05 15:30"
   },
   {
@@ -143,10 +143,10 @@
     "stop_loss_price": 3512.64,
     "score": 65,
     "status": "LOSS",
-    "current_price": 3841.0,
+    "current_price": 3646.0,
     "max_price": 3928.0,
     "min_price": 3016.0,
-    "return_pct": 4.97,
+    "return_pct": -0.36,
     "details": {
       "Theme": "【注目テーマTOP3】AI・データセンター",
       "PER": "21.0倍",
@@ -156,7 +156,7 @@
       "ATR": "±152円"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": 18200.0,
+    "pnl_yen": -1300.0,
     "closed_at": "08-03 15:30"
   },
   {
@@ -170,10 +170,10 @@
     "stop_loss_price": 4550.4,
     "score": 65,
     "status": "WIN",
-    "current_price": 5168.0,
+    "current_price": 4656.0,
     "max_price": 5169.0,
     "min_price": 3657.0,
-    "return_pct": 9.03,
+    "return_pct": -1.77,
     "details": {
       "Theme": "【注目テーマTOP3】AI・データセンター",
       "PER": "23.4倍",
@@ -183,7 +183,7 @@
       "ATR": "±194円"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": 42800.0,
+    "pnl_yen": -8400.0,
     "closed_at": "08-14 15:30"
   },
   {
@@ -197,10 +197,10 @@
     "stop_loss_price": 2944.32,
     "score": 65,
     "status": "LOSS",
-    "current_price": 3020.0,
+    "current_price": 3132.0,
     "max_price": 3233.0,
     "min_price": 2686.0,
-    "return_pct": -1.53,
+    "return_pct": 2.12,
     "details": {
       "Theme": "【注目テーマTOP3】高配当・自社株買い",
       "PER": "10.4倍",
@@ -210,7 +210,7 @@
       "ATR": "±80円"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": -4700.0,
+    "pnl_yen": 6500.0,
     "closed_at": "08-03 15:30"
   },
   {
@@ -224,10 +224,10 @@
     "stop_loss_price": 3428.16,
     "score": 65,
     "status": "LOSS",
-    "current_price": 3686.0,
+    "current_price": 3508.0,
     "max_price": 3813.0,
     "min_price": 2754.0,
-    "return_pct": 3.22,
+    "return_pct": -1.76,
     "details": {
       "Theme": "【注目テーマTOP3】高配当・自社株買い",
       "PER": "16.8倍",
@@ -237,7 +237,7 @@
       "ATR": "±119円"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": 11500.0,
+    "pnl_yen": -6300.0,
     "closed_at": "08-03 15:30"
   },
   {
@@ -251,10 +251,10 @@
     "stop_loss_price": 146.303994140625,
     "score": 65,
     "status": "WIN",
-    "current_price": 162.7,
-    "max_price": 162.7,
+    "current_price": 166.1,
+    "max_price": 166.2,
     "min_price": 142.6,
-    "return_pct": 6.76,
+    "return_pct": 8.99,
     "details": {
       "Theme": "【注目テーマTOP3】高配当・自社株買い",
       "PER": "12.1倍",
@@ -264,7 +264,7 @@
       "ATR": "±3円"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": 1030.0,
+    "pnl_yen": 1370.0,
     "closed_at": "08-14 15:30"
   }
 ]
