@@ -1,3 +1,4 @@
+import re
 import requests
 from bs4 import BeautifulSoup
 import urllib.parse
@@ -89,17 +90,26 @@ def get_stock_financial_perks(ticker: str, close_price: float = 0.0) -> dict:
         pass
         
     try:
+        # ページ本文のクラス構造は変わりやすいので、og:descriptionメタタグの
+        # 定型文("株主優待に「XX」を実施しています。YY株保有から...")を正規表現で判定する。
+        # 優待制度がない銘柄はこの定型文自体が出ず、汎用の会社概要文になる。
         url = f"https://kabutan.jp/stock/yutai?code={symbol}"
         headers = {'User-Agent': 'Mozilla/5.0'}
         resp = requests.get(url, headers=headers, timeout=4)
         soup = BeautifulSoup(resp.text, 'html.parser')
-        
-        yutai_box = soup.find('div', class_='yutai_content') or soup.find('table', class_='fin_year_table')
-        if yutai_box:
-            text = yutai_box.text.strip().replace('\n', ' ')
-            res['yutai_info'] = text[:50] + "..." if len(text) > 50 else text
-        elif "優待" in resp.text:
-            res['yutai_info'] = "株主優待制度あり"
+
+        og_desc_tag = soup.find('meta', attrs={'property': 'og:description'})
+        og_desc = og_desc_tag.get('content', '') if og_desc_tag else ''
+
+        m = re.search(r'株主優待に「(.+?)」を実施しています。(\d+)株保有から優待がもらえます。(?:権利確定月は(.+?)です。)?', og_desc)
+        if m:
+            perk, min_shares, rights_month = m.group(1), m.group(2), m.group(3)
+            info_text = f"{perk}({min_shares}株〜)"
+            if rights_month:
+                info_text += f" 権利確定:{rights_month}"
+            res['yutai_info'] = info_text[:60] + "..." if len(info_text) > 60 else info_text
+        else:
+            res['yutai_info'] = "なし"
     except Exception:
         pass
 
