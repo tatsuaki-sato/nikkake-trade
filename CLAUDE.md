@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 nikkake-trade is a Japanese stock ("日本株") signal-scanning and paper-trading dashboard. Scheduled jobs scan a fixed watchlist of tickers, score them with a quant/sentiment engine, record "AI推奨シグナル" (AI-recommended entries) as paper trades, track their price performance over time, and notify LINE/Discord. A FastAPI server exposes the same data as a live dashboard and lets the user manually add/remove AI signals and real (actually-purchased) portfolio positions.
 
+See [README.md](README.md) for the full spec: scoring formula breakdown, per-workflow cron schedule and thresholds, API endpoints, and env vars. This file only covers what you need to work in the code.
+
 ## Commands
 
 Local dev server (also runnable via Docker: `docker-compose up`):
