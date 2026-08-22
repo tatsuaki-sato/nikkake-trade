@@ -1,0 +1,35 @@
+name: Universe Rotator (Weekly Watchlist Rotation)
+
+on:
+  schedule:
+    # JST 日曜 10:00 -> UTC 土曜 25:00 = 日曜 01:00
+    - cron: '0 1 * * 0'
+  workflow_dispatch:
+
+jobs:
+  run-rotator:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Universe Rotator
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          JQUANTS_API_KEY: ${{ secrets.JQUANTS_API_KEY }}
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        # 現時点ではドライラン(通知のみ、ウォッチリストは更新しない)。
+        # ウォークフォワード検証で妥当性を確認してから apply=True に切り替える。
+        run: python modules/post_analysis/universe_rotator.py
