@@ -32,13 +32,21 @@ _STOCK_DATA_CACHE = None
 _CACHE_TIMESTAMP = 0
 CACHE_TTL_SECONDS = 600  # 10分キャッシュ
 
+_db_fallback_occurred = False  # このプロセス実行中にDB書き込みが1回でもJSONへフォールバックしたか
+
+def db_fallback_occurred() -> bool:
+    """呼び出し元(各スキャナー)が通知文にDB障害の警告を足すかどうかの判定に使う"""
+    return _db_fallback_occurred
+
 def load_history() -> list:
     """DBが使える場合はDB、なければJSONファイルにフォールバック"""
+    global _db_fallback_occurred
     if _USE_DB:
         try:
             return db_load_history()
         except Exception as e:
             print(f"DB load_history fallback: {e}")
+            _db_fallback_occurred = True
     if not os.path.exists(HISTORY_FILE):
         return []
     try:
@@ -49,23 +57,27 @@ def load_history() -> list:
 
 def save_history(history: list):
     """DBが使える場合はDB、なければJSONファイルにフォールバック"""
+    global _db_fallback_occurred
     if _USE_DB:
         try:
             db_save_history(history)
             return
         except Exception as e:
             print(f"DB save_history fallback: {e}")
+            _db_fallback_occurred = True
     os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         json.dump(history, f, ensure_ascii=False, indent=2)
 
 def load_real_portfolio() -> list:
     """DBが使える場合はDB、なければJSONファイルにフォールバック"""
+    global _db_fallback_occurred
     if _USE_DB:
         try:
             return db_load_portfolio()
         except Exception as e:
             print(f"DB load_portfolio fallback: {e}")
+            _db_fallback_occurred = True
     if not os.path.exists(REAL_PORTFOLIO_FILE):
         return []
     try:
@@ -76,12 +88,14 @@ def load_real_portfolio() -> list:
 
 def save_real_portfolio(portfolio: list):
     """DBが使える場合はDB、なければJSONファイルにフォールバック"""
+    global _db_fallback_occurred
     if _USE_DB:
         try:
             db_save_portfolio(portfolio)
             return
         except Exception as e:
             print(f"DB save_portfolio fallback: {e}")
+            _db_fallback_occurred = True
     os.makedirs(os.path.dirname(REAL_PORTFOLIO_FILE), exist_ok=True)
     with open(REAL_PORTFOLIO_FILE, "w", encoding="utf-8") as f:
         json.dump(portfolio, f, ensure_ascii=False, indent=2)
@@ -603,7 +617,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                                     <th>100株損益額 (%)</th>
                                     <th>ステータス</th>
                                     <th>決着日時</th>
-                                    <th>指標 (PER/EPS/ATR等)</th>
+                                    <th>指標 (PER/EPS/配当/優待/ATR等)</th>
                                     <th>操作</th>
                                 </tr>
                             </thead>
@@ -656,7 +670,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                                     <th>100株損益額 (%)</th>
                                     <th>ステータス</th>
                                     <th>決着日時</th>
-                                    <th>指標 (PER/EPS/ATR等)</th>
+                                    <th>指標 (PER/EPS/配当/優待/ATR等)</th>
                                     <th>操作</th>
                                 </tr>
                             </thead>
@@ -806,6 +820,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             const pbr = details.PBR || details.pbr;
             const eps = details.EPS || details.eps;
             const divYield = details.配当利回り || details.dividend_yield;
+            const yutai = details.株主優待 || details.yutai_info;
             const atrVal = details.ATR || details.atr;
             const theme = details.Theme || details.theme || details.Residual_Momentum;
 
@@ -819,6 +834,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             if (divYield) row2.push(`配当: ${{divYield}}`);
             if (row2.length > 0) lines.push(row2.join(' / '));
 
+            if (yutai && yutai !== 'なし') lines.push(`優待: ${{yutai}}`);
             if (atrVal) lines.push(`ATR: ${{atrVal}}`);
             if (theme && theme !== 'テスト') lines.push(`<span class="badge bg-light text-dark border">${{theme}}</span>`);
             

@@ -47,6 +47,8 @@ Supabaseが正(single source of truth)。`SUPABASE_URL`/`SUPABASE_KEY`は本番(
 
 過去に`weekly_performance.yml`が`data/signal_history.json`/`dashboard.html`を`main`へ直接push していた時期があり、リポジトリ内の`data/*.json`にはその名残の古いスナップショットが残っている。現在はSupabaseが正なので、これらのファイルは「ローカルでSupabase未設定のまま動かした場合のフォールバック先」以上の意味を持たない。
 
+DB操作が実際にJSONへフォールバックした回(=Supabase接続エラーが起きた回)は、その実行の通知(LINE/Discord)冒頭に「⚠️ Supabase接続エラーのためJSON保存にフォールバックしました」という警告文が自動で付く(`common/performance_tracker.py`の`db_fallback_occurred()`)。フォールバックが黙って発生して気づかない、という事態を防ぐための仕組み。
+
 ## シグナルのライフサイクル
 
 1. `record_signal()`でステータス`OPEN`として`entry_price`/`target_price`(利確)/`stop_loss_price`(損切り)付きで記録。
@@ -68,6 +70,8 @@ Supabaseが正(single source of truth)。`SUPABASE_URL`/`SUPABASE_KEY`は本番(
 | ATRベースの損益ライン | 目標=終値+3×ATR、損切り=終値−2×ATR (リスクリワード比 約1:1.5) | — |
 
 `modules/post_analysis/pro_analyzer.py`は別系統の古い100点スコアラーで、現状どのスキャナーからも呼ばれていない(未使用と思われるが削除はしていない)。
+
+スコア加点には含まれないが、`modules/post_analysis/advanced_scraper.py`の`get_stock_financial_perks()`(yfinance + Kabutanスクレイピング、7日キャッシュ)で配当利回り・株主優待情報も取得し、シグナルの`details`に`配当利回り`/`株主優待`として保存している(スコア条件を満たした銘柄・注目テーマのフォールバック銘柄いずれも)。ダッシュボードの「指標」列に表示される。
 
 ## 自動実行ジョブ(GitHub Actions, `.github/workflows/`)
 

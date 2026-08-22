@@ -8,7 +8,7 @@ import re
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from common.notifier import notify
 from common.cache_manager import get_cached_item, set_cached_item
-from common.performance_tracker import record_signal, update_signal_performance
+from common.performance_tracker import record_signal, update_signal_performance, db_fallback_occurred
 from common.stock_names import get_company_name
 from modules.post_analysis.advanced_scraper import get_x_sentiment_score, get_kabutan_news, get_market_trending_themes, get_stock_financial_perks
 from modules.post_analysis.quant_analyzer import evaluate_quant_factors
@@ -27,6 +27,11 @@ def get_cached_financial_perks(ticker: str, close_price: float) -> dict:
     data = get_stock_financial_perks(ticker, close_price)
     set_cached_item(cache_key, data)
     return data
+
+def _with_fallback_warning(text: str) -> str:
+    if db_fallback_occurred():
+        return "⚠️ **Supabase接続エラーのためJSON保存にフォールバックしました(Renderの再起動でこの回の分は失われる可能性があります)**\n\n" + text
+    return text
 
 def record_theme_candidates(theme_details: list, fetched_data: pd.DataFrame):
     """
@@ -52,10 +57,15 @@ def record_theme_candidates(theme_details: list, fetched_data: pd.DataFrame):
                         close_p = float(df.iloc[-1]['Close'])
                 
                 if close_p:
+                    perks = get_cached_financial_perks(ticker, close_p)
                     atr = close_p * 0.02
                     target_p = close_p + (3.0 * atr)
                     stop_p = max(close_p - (2.0 * atr), 0)
-                    record_signal(ticker, close_p, target_p, stop_p, score=65, details={"Theme": f"【注目テーマTOP3】{theme_name}"})
+                    record_signal(ticker, close_p, target_p, stop_p, score=65, details={
+                        "Theme": f"【注目テーマTOP3】{theme_name}",
+                        "配当利回り": perks.get('dividend_yield', 'データなし'),
+                        "株主優待": perks.get('yutai_info', 'なし')
+                    })
             except Exception as e:
                 print(f"テーマ銘柄自動記録エラー ({code}): {e}")
 
@@ -98,6 +108,8 @@ def run_daily_scanner():
                 atr = float(atr_series.iloc[-1]) if not pd.isna(atr_series.iloc[-1]) else close_price * 0.02
                 target_p = close_price + (3.0 * atr)
                 stop_p = max(close_price - (2.0 * atr), 0)
+                quant_result['details']['配当利回り'] = perks.get('dividend_yield', 'データなし')
+                quant_result['details']['株主優待'] = perks.get('yutai_info', 'なし')
                 record_signal(ticker, close_price, target_p, stop_p, score, quant_result['details'])
                 
                 hit_list.append({
@@ -143,7 +155,7 @@ def run_daily_scanner():
                     notify_text += f"  - {v}\n"
             notify_text += "\n"
             
-        notify(notify_text)
+        notify(_with_fallback_warning(notify_text))
             
     else:
         theme_details = get_market_trending_themes()
@@ -157,7 +169,7 @@ def run_daily_scanner():
             notify_text += f"{i}. **{item['theme']}**\n   └ 関連代表銘柄: {stocks_str}\n"
         notify_text += "\n※全注目テーマの代表銘柄は、全自動で【AI実測トラッキングデータベース】へ登録・勝敗追跡中。"
         
-        notify(notify_text)
+        notify(_with_fallback_warning(notify_text))
 
 if __name__ == "__main__":
     run_daily_scanner()
