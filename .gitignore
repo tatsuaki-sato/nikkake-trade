@@ -13,6 +13,10 @@ __pycache__/
 # J-Quants universe-wide lookups are cached; no value in git history.
 data/cache.json
 
+# Full-backtest price/financials cache (modules/post_analysis/full_backtest.py) -
+# ~100MB of re-downloadable J-Quants data
+data/backtest_cache/
+
 # IDEs
 .vscode/
 .idea/

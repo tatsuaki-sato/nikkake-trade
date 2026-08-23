@@ -72,9 +72,10 @@ def _get(path: str, params: dict = None, max_retries: int = 4) -> dict:
             time.sleep(wait)
             continue
         if resp.status_code == 400:
-            m = re.search(r"subscription covers the following dates:\s*([\d-]+)\s*~\s*([\d-]+)", resp.text)
+            # 終端は省略されることがある("2021-08-23 ~ ." のような開区間)
+            m = re.search(r"subscription covers the following dates:\s*([\d-]+)\s*~\s*([\d-]*)", resp.text)
             if m:
-                raise SubscriptionRangeError(resp.text, range_from=m.group(1), range_to=m.group(2))
+                raise SubscriptionRangeError(resp.text, range_from=m.group(1), range_to=m.group(2) or None)
         resp.raise_for_status()
         return resp.json()
     raise RuntimeError(f"J-Quants API レート制限が解消しませんでした: {path}")
