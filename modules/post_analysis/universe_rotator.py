@@ -110,13 +110,19 @@ def format_notification(decision: dict, as_of_date: str) -> str:
     if decision.get("in_suspended"):
         lines.append(f"⏸️ リスクオフのため新規IN {len(decision['in_suspended'])}件を見送り: "
                      + ", ".join(f"{r['name']}({r['code']})" for r in decision["in_suspended"]))
+    catalysts = decision.get("catalysts", {})
+    catalyst_marks = {2: "🟢🟢", 1: "🟢", 0: "⚪", -1: "🔴", -2: "🔴🔴"}
     if decision["in"]:
         lines.append("📥 **IN**")
         for r in decision["in"]:
-            lines.append(
+            line = (
                 f"・{r['name']}({r['code']}) — {r['sector']} / "
                 f"モメンタム{r['momentum_12_1']*100:+.1f}% / スコア{r['score']}"
             )
+            cat = catalysts.get(r["ticker"])
+            if cat:
+                line += f"\n   └ 材料{catalyst_marks.get(cat['score'], '⚪')} {cat['reason']}"
+            lines.append(line)
     if decision["out"]:
         lines.append("\n📤 **OUT**")
         for o in decision["out"]:
@@ -158,6 +164,22 @@ def run_universe_rotator(apply: bool = False, notify_result: bool = True):
         decision["in_suspended"] = []
 
     print(f"IN: {len(decision['in'])} / OUT: {len(decision['out'])} / 猶予: {len(decision['watch_out'])}")
+
+    # LLMカタリスト解析: IN候補の直近ニュースをClaudeに読ませ、材料の有無を注記。
+    # ANTHROPIC_API_KEY 未設定なら黙ってスキップ(空dict)。
+    decision["catalysts"] = {}
+    if decision["in"]:
+        try:
+            from modules.post_analysis.advanced_scraper import get_kabutan_news
+            from modules.post_analysis.llm_catalyst import analyze_catalysts
+            candidates = [
+                {"ticker": r["ticker"], "name": r["name"], "sector": r["sector"],
+                 "news": get_kabutan_news(r["ticker"])}
+                for r in decision["in"]
+            ]
+            decision["catalysts"] = analyze_catalysts(candidates)
+        except Exception as e:
+            print(f"カタリスト解析エラー(注記なしで継続): {e}")
 
     if notify_result:
         notify(format_notification(decision, as_of_date))
