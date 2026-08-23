@@ -100,7 +100,10 @@ def save_real_portfolio(portfolio: list):
     with open(REAL_PORTFOLIO_FILE, "w", encoding="utf-8") as f:
         json.dump(portfolio, f, ensure_ascii=False, indent=2)
 
-def record_signal(ticker: str, entry_price: float, target_price: float, stop_loss_price: float, score: int, details: dict):
+def record_signal(ticker: str, entry_price: float, target_price: float, stop_loss_price: float, score: int, details: dict, channel: str = "manual"):
+    """channel: シグナルの供給元タグ(実績フィードバック集計用)。
+    "quant_scan"(日次スキャナー) / "trend_prediction"(朝の予測) /
+    "theme_ranking"(株探ランキング経由) / "manual"(手動追加)"""
     history = load_history()
     now_str = datetime.now().strftime("%m-%d %H:%M")
     code = ticker.replace('.T', '').strip()
@@ -129,6 +132,7 @@ def record_signal(ticker: str, entry_price: float, target_price: float, stop_los
         "min_price": round(entry_price, 1),
         "return_pct": 0.0,
         "pnl_yen": 0.0,
+        "channel": channel,
         "details": details or {}
     }
     history.append(signal_entry)
@@ -504,6 +508,28 @@ def generate_weekly_report() -> str:
     text += f"🎯 **通算勝率**: **{win_rate:.1f}%**\n"
     text += f"💰 **最新評価損益通算**: **{total_pnl_yen:+,.0f}円 ({total_return_pct:+.1f}%)**\n\n"
     
+    # チャネル別成績(実績フィードバックの土台: どの供給元が機能しているかを毎週可視化)
+    channels = {}
+    for i in history:
+        ch = i.get("channel", "不明")
+        channels.setdefault(ch, {"win": 0, "loss": 0, "open": 0, "ret": 0.0})
+        st = i.get("status")
+        if st == "WIN":
+            channels[ch]["win"] += 1
+        elif st == "LOSS":
+            channels[ch]["loss"] += 1
+        else:
+            channels[ch]["open"] += 1
+        channels[ch]["ret"] += i.get("return_pct", 0)
+    ch_labels = {"quant_scan": "日次クオンツ", "trend_prediction": "朝の予測", "theme_ranking": "ランキング経由", "manual": "手動追加", "不明": "タグなし(旧データ)"}
+    if len(channels) > 1 or "不明" not in channels:
+        text += "🧭 **【供給チャネル別成績】**\n"
+        for ch, c in sorted(channels.items(), key=lambda kv: -(kv[1]["win"] + kv[1]["loss"])):
+            closed = c["win"] + c["loss"]
+            wr = (c["win"] / closed * 100) if closed else 0.0
+            text += f"・{ch_labels.get(ch, ch)}: {c['win']}勝{c['loss']}敗 (勝率{wr:.0f}% / 監視中{c['open']}件 / 累計{c['ret']:+.1f}%)\n"
+        text += "\n"
+
     text += "📋 **【直近AI推奨シグナル】**\n"
     for item in reversed(history[-5:]):
         st = item.get("status")

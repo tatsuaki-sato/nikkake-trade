@@ -65,7 +65,7 @@ def record_theme_candidates(theme_details: list, fetched_data: pd.DataFrame):
                         "Theme": f"【市場注目ランキング】{theme_name}",
                         "配当利回り": perks.get('dividend_yield', 'データなし'),
                         "株主優待": perks.get('yutai_info', 'なし')
-                    })
+                    }, channel="theme_ranking")
             except Exception as e:
                 print(f"テーマ銘柄自動記録エラー ({code}): {e}")
 
@@ -125,7 +125,7 @@ def run_predictor():
                 stop_p = max(close_price - (2.0 * atr), 0)
                 quant_result['details']['配当利回り'] = perks.get('dividend_yield', 'データなし')
                 quant_result['details']['株主優待'] = perks.get('yutai_info', 'なし')
-                record_signal(ticker, close_price, target_p, stop_p, score, quant_result['details'])
+                record_signal(ticker, close_price, target_p, stop_p, score, quant_result['details'], channel="trend_prediction")
                 
                 hit_list.append({
                     "銘柄名": stock_name,

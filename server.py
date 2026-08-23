@@ -130,6 +130,7 @@ def add_api_history(signal: AISignalInput, background_tasks: BackgroundTasks):
         "min_price": entry_p,
         "return_pct": 0.0,
         "pnl_yen": 0.0,
+        "channel": "manual",
         "details": {
             "Theme": signal.theme if signal.theme else "手動追加候補"
         }
