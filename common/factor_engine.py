@@ -182,6 +182,8 @@ def _zscore(values: dict) -> dict:
 def build_universe_scores(
     min_turnover_oku: float = 5.0,
     fundamentals_top_n: int = 60,
+    max_vol_20d: float = 0.05,
+    min_ret_3m: float = -0.10,
 ) -> list:
     """東証プライムの全銘柄を横断採点する。
 
@@ -214,6 +216,22 @@ def build_universe_scores(
         if f["turnover_avg20_oku"] >= min_turnover_oku and f["momentum_12_1"] is not None
     }
     print(f"[factor_engine] 流動性フィルタ(平均売買代金{min_turnover_oku}億円以上)後: {len(liquid)}銘柄")
+
+    # 急騰株の独占対策: 2026-08-23のドライランで、モメンタム上位20件がAI需要
+    # (半導体メモリ・銅線・レアメタル)一色の+250〜+1450%騰落に占拠される事象を確認。
+    # 個別には正しい数値だが、そのまま採用すると循環枠が単一テーマの「相場もの」に
+    # 汚染される。2つの条件で足切りする:
+    #   - vol_20d: 直近20営業日の日次ボラが異常に高い(パラボリック相場)銘柄を除外
+    #   - ret_3m: 12ヶ月では騰落大でも、直近3ヶ月で大きく崩れている(=既に天井を
+    #     打って崩落中)銘柄を除外。一時的なスパイクと持続的トレンドを区別する。
+    before_guard = len(liquid)
+    liquid = {
+        c: f for c, f in liquid.items()
+        if (f["vol_20d"] is None or f["vol_20d"] <= max_vol_20d)
+        and (f["ret_3m"] is None or f["ret_3m"] >= min_ret_3m)
+    }
+    print(f"[factor_engine] 急騰株ガード(日次ボラ{max_vol_20d*100:.0f}%以下 かつ "
+          f"3ヶ月リターン{min_ret_3m*100:.0f}%以上)後: {before_guard}→{len(liquid)}銘柄")
 
     ranked_by_momentum = sorted(liquid.items(), key=lambda kv: kv[1]["momentum_12_1"], reverse=True)
     candidates = ranked_by_momentum[:fundamentals_top_n]
