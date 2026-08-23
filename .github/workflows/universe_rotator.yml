@@ -28,6 +28,7 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           JQUANTS_API_KEY: ${{ secrets.JQUANTS_API_KEY }}
           JQUANTS_RATE_LIMIT_PER_MIN: "55"  # Lightプラン(公式60/分)に安全マージン
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}  # LLMカタリスト注記用
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
