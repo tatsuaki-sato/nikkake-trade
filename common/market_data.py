@@ -10,6 +10,7 @@ Freeプランはデータが12週遅延・過去2年分のため、当日の価�
 銘柄コードは5桁 ("7203" → "72030")。ここでは4桁/".T"付きも受け付けて変換する。
 """
 import os
+import re
 import time
 import requests
 
@@ -45,6 +46,14 @@ def _normalize_code(code: str) -> str:
         code += "0"
     return code
 
+class SubscriptionRangeError(RuntimeError):
+    """リクエストした日付が契約範囲外だった場合に、契約範囲(from/to)を添えて送出する"""
+    def __init__(self, message: str, range_from: str = None, range_to: str = None):
+        super().__init__(message)
+        self.range_from = range_from
+        self.range_to = range_to
+
+
 def _get(path: str, params: dict = None, max_retries: int = 4) -> dict:
     api_key = os.environ.get("JQUANTS_API_KEY", "")
     if not api_key:
@@ -62,6 +71,10 @@ def _get(path: str, params: dict = None, max_retries: int = 4) -> dict:
             print(f"[market_data] 429応答、{wait:.0f}秒待機してリトライ ({attempt + 1}/{max_retries})")
             time.sleep(wait)
             continue
+        if resp.status_code == 400:
+            m = re.search(r"subscription covers the following dates:\s*([\d-]+)\s*~\s*([\d-]+)", resp.text)
+            if m:
+                raise SubscriptionRangeError(resp.text, range_from=m.group(1), range_to=m.group(2))
         resp.raise_for_status()
         return resp.json()
     raise RuntimeError(f"J-Quants API レート制限が解消しませんでした: {path}")

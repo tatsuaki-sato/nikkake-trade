@@ -18,7 +18,10 @@ quality(ROE)・value(PBR) は `attach_fundamentals()` で、価格ファクタ�
 import statistics
 from datetime import datetime, timedelta
 
-from common.market_data import get_equities_master, get_daily_bars_by_date, get_latest_trading_date, _get_paginated
+from common.market_data import (
+    get_equities_master, get_daily_bars_by_date, get_latest_trading_date,
+    _get_paginated, SubscriptionRangeError,
+)
 from common.cache_manager import get_cached_item, set_cached_item
 
 BENCHMARK_CODE = "13210"  # NEXT FUNDS TOPIX連動型上場投信(既存 daily_scanner の 1321.T と同一銘柄)
@@ -31,21 +34,33 @@ RET_3M_OFFSET = 63
 MOM_LOOKBACK_OFFSET = 252
 
 
-def get_trading_dates(lookback_calendar_days: int = 420) -> list:
+def get_trading_dates(lookback_calendar_days: int = 730) -> list:
     """ベンチマーク銘柄の日足から、実際に取引のあった日付(YYYY-MM-DD)を昇順で返す。
 
     契約プランで取得できる最新営業日を上限とする(Freeプランは12週遅延のため、
-    今日の日付を指定すると「未来日」扱いで400エラーになる)。
+    今日の日付を指定すると「未来日」扱いで400エラーになる)。デフォルトの730日は
+    Freeプランの契約期間(約2年)をカバーする狙いだが、境界ぴったりを指定すると
+    数日のズレで400になることがあるため、そのエラーメッセージに含まれる実際の
+    契約範囲(from/to)を読み取って1回だけ自動的に取り直す。
     """
     latest_available = get_latest_trading_date()
     date_to = datetime.strptime(latest_available, "%Y-%m-%d") if latest_available else datetime.now()
     date_from = date_to - timedelta(days=lookback_calendar_days)
-    rows = _get_paginated(
-        "/equities/bars/daily",
-        {"code": BENCHMARK_CODE, "from": date_from.strftime("%Y%m%d"), "to": date_to.strftime("%Y%m%d")},
-    )
-    dates = sorted({r["Date"] for r in rows})
-    return dates
+
+    def _fetch(d_from: datetime, d_to: datetime) -> list:
+        rows = _get_paginated(
+            "/equities/bars/daily",
+            {"code": BENCHMARK_CODE, "from": d_from.strftime("%Y%m%d"), "to": d_to.strftime("%Y%m%d")},
+        )
+        return sorted({r["Date"] for r in rows})
+
+    try:
+        return _fetch(date_from, date_to)
+    except SubscriptionRangeError as e:
+        print(f"[factor_engine] 要求範囲が契約外、契約範囲({e.range_from}〜{e.range_to})に合わせて再取得")
+        safe_from = datetime.strptime(e.range_from, "%Y-%m-%d") + timedelta(days=1)
+        safe_to = min(date_to, datetime.strptime(e.range_to, "%Y-%m-%d"))
+        return _fetch(safe_from, safe_to)
 
 
 def _offsets_to_dates(trading_dates: list) -> dict:
