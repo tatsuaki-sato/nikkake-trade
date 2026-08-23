@@ -194,11 +194,23 @@ def _zscore(values: dict) -> dict:
     return {k: ((v - mean) / stdev if v is not None else 0.0) for k, v in values.items()}
 
 
+# レジーム別ファクター配分(v2設計 Layer 3)。
+# リスクオン: トレンド追随(モメンタム)を厚く。
+# リスクオフ: 質(ROE)・割安(PBR)・低ボラの防御ファクターへ寄せる。
+# NEUTRAL は従来の配分そのまま。合計は各1.0。
+REGIME_WEIGHTS = {
+    "RISK_ON":  {"momentum": 0.45, "ret_3m": 0.15, "roe": 0.15, "value": 0.10, "lowvol": 0.15},
+    "NEUTRAL":  {"momentum": 0.35, "ret_3m": 0.15, "roe": 0.20, "value": 0.15, "lowvol": 0.15},
+    "RISK_OFF": {"momentum": 0.15, "ret_3m": 0.10, "roe": 0.30, "value": 0.20, "lowvol": 0.25},
+}
+
+
 def build_universe_scores(
     min_turnover_oku: float = 5.0,
     fundamentals_top_n: int = 60,
     max_vol_20d: float = 0.05,
     min_ret_3m: float = -0.10,
+    regime: str = "NEUTRAL",
 ) -> list:
     """東証プライムの全銘柄を横断採点する。
 
@@ -269,14 +281,17 @@ def build_universe_scores(
     ret3m_z = _zscore({c: liquid[c]["ret_3m"] for c in candidate_codes})
     lowvol_z = _zscore({c: (-liquid[c]["vol_20d"] if liquid[c]["vol_20d"] else None) for c in candidate_codes})
 
+    w = REGIME_WEIGHTS.get(regime, REGIME_WEIGHTS["NEUTRAL"])
+    print(f"[factor_engine] レジーム: {regime} → 配分 {w}")
+
     rows = []
     for c in candidate_codes:
         composite = (
-            0.35 * mom_z[c]
-            + 0.15 * ret3m_z[c]
-            + 0.20 * roe_z[c]
-            + 0.15 * value_z[c]
-            + 0.15 * lowvol_z[c]
+            w["momentum"] * mom_z[c]
+            + w["ret_3m"] * ret3m_z[c]
+            + w["roe"] * roe_z[c]
+            + w["value"] * value_z[c]
+            + w["lowvol"] * lowvol_z[c]
         )
         info = prime.get(c, {})
         rows.append({

@@ -13,6 +13,7 @@ from common.stock_names import get_company_name
 from modules.post_analysis.advanced_scraper import get_x_sentiment_score, get_kabutan_news, get_market_trending_themes, get_stock_financial_perks
 from modules.post_analysis.quant_analyzer import evaluate_quant_factors
 from common.quant_math import calculate_atr
+from common.earnings_guard import get_upcoming_earnings_codes
 
 from common.watchlist import get_target_tickers
 
@@ -83,10 +84,20 @@ def run_predictor():
 
     market_df = data[BENCHMARK_TICKER].copy().dropna() if data is not None and BENCHMARK_TICKER in data else None
     hit_list = []
-    
+
+    # 決算またぎ抑制(daily_scannerと同じ方針)
+    try:
+        upcoming_earnings = get_upcoming_earnings_codes()
+    except Exception as e:
+        print(f"決算カレンダー取得エラー(抑制なしで継続): {e}")
+        upcoming_earnings = set()
+
     for ticker in target_tickers:
         try:
             if data is None or ticker not in data:
+                continue
+            if ticker.replace(".T", "")[:4] in upcoming_earnings:
+                print(f"決算発表接近のためスキップ: {ticker}")
                 continue
             stock_df = data[ticker].copy().dropna()
             if len(stock_df) < 50:

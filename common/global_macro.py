@@ -59,9 +59,22 @@ def fetch_global_macro_data() -> dict:
             macro_result["market_regime"] = "RISK_OFF (警戒相場)"
         else:
             macro_result["market_regime"] = "NEUTRAL (中立)"
-            
+
         set_cached_item("global_macro_data", macro_result)
     except Exception as e:
         print(f"マクロデータ取得エラー: {e}")
 
     return macro_result
+
+def get_market_regime() -> str:
+    """機械可読なレジーム判定: "RISK_ON" / "NEUTRAL" / "RISK_OFF" のいずれかを返す。
+
+    fetch_global_macro_data() の market_regime(表示用の日本語付き文字列)から
+    切り出す。ファクター配分の切替(factor_engine)や新規INの抑制
+    (universe_rotator)など、プログラム側の分岐にはこちらを使うこと。
+    """
+    regime_str = fetch_global_macro_data().get("market_regime", "NEUTRAL")
+    for key in ("RISK_ON", "RISK_OFF", "NEUTRAL"):
+        if regime_str.startswith(key):
+            return key
+    return "NEUTRAL"

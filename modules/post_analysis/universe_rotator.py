@@ -21,6 +21,7 @@ import json
 from datetime import datetime
 
 from common.factor_engine import build_universe_scores, apply_sector_cap
+from common.global_macro import get_market_regime
 from common.watchlist import load_watchlist, save_watchlist
 from common.notifier import notify
 
@@ -97,7 +98,18 @@ def decide_rotation(ranked_rows: list, current_rotation_tickers: set) -> dict:
 
 
 def format_notification(decision: dict, as_of_date: str) -> str:
-    lines = [f"🔁 **【週次ウォッチリスト・ローテーション】** (基準日: {as_of_date})\n"]
+    regime_label = {
+        "RISK_ON": "リスクオン(モメンタム重視)",
+        "NEUTRAL": "中立(標準配分)",
+        "RISK_OFF": "リスクオフ(防御ファクター重視・新規IN停止)",
+    }.get(decision.get("regime", "NEUTRAL"), "中立")
+    lines = [
+        f"🔁 **【週次ウォッチリスト・ローテーション】** (基準日: {as_of_date})",
+        f"🌐 レジーム: {regime_label}\n",
+    ]
+    if decision.get("in_suspended"):
+        lines.append(f"⏸️ リスクオフのため新規IN {len(decision['in_suspended'])}件を見送り: "
+                     + ", ".join(f"{r['name']}({r['code']})" for r in decision["in_suspended"]))
     if decision["in"]:
         lines.append("📥 **IN**")
         for r in decision["in"]:
@@ -122,7 +134,10 @@ def format_notification(decision: dict, as_of_date: str) -> str:
 def run_universe_rotator(apply: bool = False, notify_result: bool = True):
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 週次ユニバース・ローテーター起動...")
 
-    ranked_rows = build_universe_scores(min_turnover_oku=MIN_TURNOVER_OKU)
+    regime = get_market_regime()
+    print(f"マクロレジーム: {regime}")
+
+    ranked_rows = build_universe_scores(min_turnover_oku=MIN_TURNOVER_OKU, regime=regime)
     as_of_date = ranked_rows[0]["as_of_date"] if ranked_rows else "不明"
     print(f"採点完了: {len(ranked_rows)}銘柄 (基準日 {as_of_date})")
 
@@ -130,6 +145,18 @@ def run_universe_rotator(apply: bool = False, notify_result: bool = True):
     current_rotation = {i["ticker"] for i in watchlist if i.get("tier") == "rotation"}
 
     decision = decide_rotation(ranked_rows, current_rotation)
+    decision["regime"] = regime
+
+    # リスクオフ時は新規INを停止する(下落局面での逆張り的な入れ替えは
+    # 簡易バックテストでも固定リストに大きく負けた地点があった箇所)。
+    # OUT(悪化銘柄の退出)と猶予カウントは通常どおり進める。
+    if regime == "RISK_OFF" and decision["in"]:
+        print(f"RISK_OFFのため新規IN {len(decision['in'])}件を見送り")
+        decision["in_suspended"] = decision["in"]
+        decision["in"] = []
+    else:
+        decision["in_suspended"] = []
+
     print(f"IN: {len(decision['in'])} / OUT: {len(decision['out'])} / 猶予: {len(decision['watch_out'])}")
 
     if notify_result:
