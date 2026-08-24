@@ -18,7 +18,8 @@
       "PBR": "1.0倍",
       "EPS": "295.4円",
       "配当利回り": "3.3%",
-      "ATR": "±80円"
+      "ATR": "±80円",
+      "株主優待": "TOYOTA Wallet、モータースポーツ(100株〜) 権利確定:3月"
     },
     "close_date": "2026-08-02",
     "pnl_yen": 13200.0,
@@ -45,7 +46,8 @@
       "PBR": "12.2倍",
       "EPS": "1248.8円",
       "配当利回り": "1.4%",
-      "ATR": "±4904円"
+      "ATR": "±4904円",
+      "株主優待": "なし"
     },
     "close_date": "2026-08-02",
     "pnl_yen": -121000.0,
@@ -72,7 +74,8 @@
       "PBR": "15.07倍",
       "EPS": "966.7円",
       "配当利回り": "87.0%",
-      "ATR": "±3937円"
+      "ATR": "±3937円",
+      "株主優待": "なし"
     },
     "close_date": "2026-08-02",
     "pnl_yen": -279000.0,
@@ -99,7 +102,8 @@
       "PBR": "29.63倍",
       "EPS": "516.8円",
       "配当利回り": "18.0%",
-      "ATR": "±2663円"
+      "ATR": "±2663円",
+      "株主優待": "なし"
     },
     "close_date": "2026-08-02",
     "pnl_yen": 340000.0,
@@ -126,7 +130,8 @@
       "PBR": "1.7倍",
       "EPS": "872.6円",
       "配当利回り": "21.0%",
-      "ATR": "±451円"
+      "ATR": "±451円",
+      "株主優待": "なし"
     },
     "close_date": "2026-08-02",
     "pnl_yen": -500.0,
@@ -153,7 +158,8 @@
       "PBR": "3.12倍",
       "EPS": "174.5円",
       "配当利回り": "1.5%",
-      "ATR": "±152円"
+      "ATR": "±152円",
+      "株主優待": "なし"
     },
     "close_date": "2026-08-02",
     "pnl_yen": -1300.0,
@@ -180,7 +186,8 @@
       "PBR": "2.86倍",
       "EPS": "202.9円",
       "配当利回り": "84.0%",
-      "ATR": "±194円"
+      "ATR": "±194円",
+      "株主優待": "なし"
     },
     "close_date": "2026-08-02",
     "pnl_yen": -8400.0,
@@ -207,7 +214,8 @@
       "PBR": "1.0倍",
       "EPS": "295.4円",
       "配当利回り": "3.3%",
-      "ATR": "±80円"
+      "ATR": "±80円",
+      "株主優待": "TOYOTA Wallet、モータースポーツ(100株〜) 権利確定:3月"
     },
     "close_date": "2026-08-02",
     "pnl_yen": 6500.0,
@@ -234,7 +242,8 @@
       "PBR": "2.06倍",
       "EPS": "212.5円",
       "配当利回り": "2.7%",
-      "ATR": "±119円"
+      "ATR": "±119円",
+      "株主優待": "なし"
     },
     "close_date": "2026-08-02",
     "pnl_yen": -6300.0,
@@ -261,10 +270,227 @@
       "PBR": "1.28倍",
       "EPS": "12.6円",
       "配当利回り": "3.5%",
-      "ATR": "±3円"
+      "ATR": "±3円",
+      "株主優待": "dポイント付与(100株〜) 権利確定:3月"
     },
     "close_date": "2026-08-02",
     "pnl_yen": 1370.0,
     "closed_at": "08-14 15:30"
+  },
+  {
+    "id": "5803_20260823_143308",
+    "date": "08-23 14:33",
+    "ticker_code": "5803",
+    "name": "5803",
+    "entry_price": 5280.0,
+    "sim_amount": 528000.0,
+    "target_price": 5596.8,
+    "stop_loss_price": 5068.8,
+    "score": 65,
+    "status": "OPEN",
+    "closed_at": "-",
+    "current_price": 5280.0,
+    "max_price": 5280.0,
+    "min_price": 5280.0,
+    "return_pct": 0.0,
+    "pnl_yen": 0.0,
+    "channel": "theme_ranking",
+    "details": {
+      "Theme": "【市場注目ランキング】本日の活況銘柄(約定回数上位)",
+      "配当利回り": "72.00%",
+      "株主優待": "なし"
+    }
+  },
+  {
+    "id": "6976_20260823_143311",
+    "date": "08-23 14:33",
+    "ticker_code": "6976",
+    "name": "6976",
+    "entry_price": 9300.0,
+    "sim_amount": 930000.0,
+    "target_price": 9858.0,
+    "stop_loss_price": 8928.0,
+    "score": 65,
+    "status": "OPEN",
+    "closed_at": "-",
+    "current_price": 9300.0,
+    "max_price": 9300.0,
+    "min_price": 9300.0,
+    "return_pct": 0.0,
+    "pnl_yen": 0.0,
+    "channel": "theme_ranking",
+    "details": {
+      "Theme": "【市場注目ランキング】本日の活況銘柄(約定回数上位)",
+      "配当利回り": "97.00%",
+      "株主優待": "なし"
+    }
+  },
+  {
+    "id": "6981_20260823_143313",
+    "date": "08-23 14:33",
+    "ticker_code": "6981",
+    "name": "6981",
+    "entry_price": 7091.0,
+    "sim_amount": 709100.0,
+    "target_price": 7516.5,
+    "stop_loss_price": 6807.4,
+    "score": 65,
+    "status": "OPEN",
+    "closed_at": "-",
+    "current_price": 7091.0,
+    "max_price": 7091.0,
+    "min_price": 7091.0,
+    "return_pct": 0.0,
+    "pnl_yen": 0.0,
+    "channel": "theme_ranking",
+    "details": {
+      "Theme": "【市場注目ランキング】本日の活況銘柄(約定回数上位)",
+      "配当利回り": "99.00%",
+      "株主優待": "なし"
+    }
+  },
+  {
+    "id": "6027_20260823_143316",
+    "date": "08-23 14:33",
+    "ticker_code": "6027",
+    "name": "6027",
+    "entry_price": 4475.0,
+    "sim_amount": 447500.0,
+    "target_price": 4743.5,
+    "stop_loss_price": 4296.0,
+    "score": 65,
+    "status": "OPEN",
+    "closed_at": "-",
+    "current_price": 4475.0,
+    "max_price": 4475.0,
+    "min_price": 4475.0,
+    "return_pct": 0.0,
+    "pnl_yen": 0.0,
+    "channel": "theme_ranking",
+    "details": {
+      "Theme": "【市場注目ランキング】過去1ヶ月上昇率(時価総額1000億円以上)",
+      "配当利回り": "データなし",
+      "株主優待": "なし"
+    }
+  },
+  {
+    "id": "2737_20260823_143318",
+    "date": "08-23 14:33",
+    "ticker_code": "2737",
+    "name": "2737",
+    "entry_price": 28350.0,
+    "sim_amount": 2835000.0,
+    "target_price": 30051.0,
+    "stop_loss_price": 27216.0,
+    "score": 65,
+    "status": "OPEN",
+    "closed_at": "-",
+    "current_price": 28350.0,
+    "max_price": 28350.0,
+    "min_price": 28350.0,
+    "return_pct": 0.0,
+    "pnl_yen": 0.0,
+    "channel": "theme_ranking",
+    "details": {
+      "Theme": "【市場注目ランキング】過去1ヶ月上昇率(時価総額1000億円以上)",
+      "配当利回り": "1157.00%",
+      "株主優待": "株主優待商品(100株〜) 権利確定:9月"
+    }
+  },
+  {
+    "id": "2767_20260823_143320",
+    "date": "08-23 14:33",
+    "ticker_code": "2767",
+    "name": "2767",
+    "entry_price": 2540.0,
+    "sim_amount": 254000.0,
+    "target_price": 2692.4,
+    "stop_loss_price": 2438.4,
+    "score": 65,
+    "status": "OPEN",
+    "closed_at": "-",
+    "current_price": 2540.0,
+    "max_price": 2540.0,
+    "min_price": 2540.0,
+    "return_pct": 0.0,
+    "pnl_yen": 0.0,
+    "channel": "theme_ranking",
+    "details": {
+      "Theme": "【市場注目ランキング】過去1ヶ月上昇率(時価総額1000億円以上)",
+      "配当利回り": "276.00%",
+      "株主優待": "なし"
+    }
+  },
+  {
+    "id": "1773_20260823_143323",
+    "date": "08-23 14:33",
+    "ticker_code": "1773",
+    "name": "1773",
+    "entry_price": 95.0,
+    "sim_amount": 9500.0,
+    "target_price": 100.7,
+    "stop_loss_price": 91.2,
+    "score": 65,
+    "status": "OPEN",
+    "closed_at": "-",
+    "current_price": 95.0,
+    "max_price": 95.0,
+    "min_price": 95.0,
+    "return_pct": 0.0,
+    "pnl_yen": 0.0,
+    "channel": "theme_ranking",
+    "details": {
+      "Theme": "【市場注目ランキング】年初来高値を更新(時価総額1000億円以上)",
+      "配当利回り": "248.00%",
+      "株主優待": "なし"
+    }
+  },
+  {
+    "id": "2004_20260823_143326",
+    "date": "08-23 14:33",
+    "ticker_code": "2004",
+    "name": "2004",
+    "entry_price": 3745.0,
+    "sim_amount": 374500.0,
+    "target_price": 3969.7,
+    "stop_loss_price": 3595.2,
+    "score": 65,
+    "status": "OPEN",
+    "closed_at": "-",
+    "current_price": 3745.0,
+    "max_price": 3745.0,
+    "min_price": 3745.0,
+    "return_pct": 0.0,
+    "pnl_yen": 0.0,
+    "channel": "theme_ranking",
+    "details": {
+      "Theme": "【市場注目ランキング】年初来高値を更新(時価総額1000億円以上)",
+      "配当利回り": "374.00%",
+      "株主優待": "自社製品(100株〜) 権利確定:3月"
+    }
+  },
+  {
+    "id": "2109_20260823_143328",
+    "date": "08-23 14:33",
+    "ticker_code": "2109",
+    "name": "2109",
+    "entry_price": 3660.0,
+    "sim_amount": 366000.0,
+    "target_price": 3879.6,
+    "stop_loss_price": 3513.6,
+    "score": 65,
+    "status": "OPEN",
+    "closed_at": "-",
+    "current_price": 3660.0,
+    "max_price": 3660.0,
+    "min_price": 3660.0,
+    "return_pct": 0.0,
+    "pnl_yen": 0.0,
+    "channel": "theme_ranking",
+    "details": {
+      "Theme": "【市場注目ランキング】年初来高値を更新(時価総額1000億円以上)",
+      "配当利回り": "383.00%",
+      "株主優待": "自社グループ製品、寄付(100株〜) 権利確定:3月"
+    }
   }
 ]
