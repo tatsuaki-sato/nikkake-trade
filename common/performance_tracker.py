@@ -651,7 +651,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     </div>
                     <div class="col-md-4">
                         <div class="card card-stat bg-white p-3 text-center">
-                            <div class="text-muted">推奨時からの最新評価損益 (100株計)</div>
+                            <div class="text-muted">開始時からの最新評価損益 (100株計)</div>
                             <div class="display-5 {'text-success' if total_pnl_yen >= 0 else 'text-danger'} fw-bold" id="aiReturnText">{total_pnl_yen:+,.0f}円</div>
                             <small id="aiReturnPctText">最新評価リターン通算: {total_return_pct:+.1f}%</small>
                         </div>
@@ -671,27 +671,26 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                         <div class="d-flex align-items-center gap-2">
                             <label for="pnlBasisSelect" class="text-muted mb-0"><small>損益の起点</small></label>
                             <select id="pnlBasisSelect" class="form-select form-select-sm" style="width:auto" onchange="onPnlBasisChange()">
-                                <option value="entry">推奨日(登録時)から</option>
+                                <option value="entry">開始日(登録時)から</option>
                                 <option value="1d">前営業日から</option>
                                 <option value="1w">1週間前から</option>
                                 <option value="1m">1ヶ月前から</option>
                             </select>
                         </div>
                     </div>
-                    <div class="mb-2"><small class="text-muted">選んだ起点の株価と最新株価を比較した損益額(%)を表示します。WIN/LOSS判定は常に推奨日基準です。</small></div>
+                    <div class="mb-2"><small class="text-muted">選んだ起点の株価と最新株価を比較した損益額(%)を表示します。WIN/LOSS判定は常に開始日基準です。</small></div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th>推奨日時</th>
                                     <th>企業名 (コード)</th>
                                     <th>スコア</th>
-                                    <th>推奨株価 (100株購入額)</th>
-                                    <th>目標利確 / 損切り</th>
+                                    <th>開始時株価 (100株購入額)</th>
                                     <th>最新/最終株価</th>
-                                    <th>100株損益額 (%)<br><small class="text-muted fw-normal" id="pnlBasisLabel">推奨日 → 最新</small></th>
+                                    <th>目標利確 / 損切り</th>
+                                    <th>100株損益額 (%)<br><small class="text-muted fw-normal" id="pnlBasisLabel">開始日 → 最新</small></th>
                                     <th>ステータス</th>
-                                    <th>決着日時</th>
+                                    <th>開始日時 / 決着日時</th>
                                     <th>指標 (PER/EPS/配当/優待/ATR等)</th>
                                     <th>操作</th>
                                 </tr>
@@ -735,15 +734,14 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th>購入日時</th>
                                     <th>企業名 (コード)</th>
                                     <th>スコア</th>
                                     <th>買付単価 (100株購入額)</th>
-                                    <th>目標利確 / 損切り</th>
                                     <th>最新株価</th>
+                                    <th>目標利確 / 損切り</th>
                                     <th>100株損益額 (%)</th>
                                     <th>ステータス</th>
-                                    <th>決着日時</th>
+                                    <th>購入日時 / 決着日時</th>
                                     <th>指標 (PER/EPS/配当/優待/ATR等)</th>
                                     <th>操作</th>
                                 </tr>
@@ -769,7 +767,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 <div class="modal-body">
                     <form id="addSignalForm">
                         <div class="mb-3">
-                            <label class="form-label">推奨日時</label>
+                            <label class="form-label">開始日時</label>
                             <input type="datetime-local" class="form-control" id="inputSignalDate" required>
                         </div>
                         <div class="mb-3">
@@ -781,7 +779,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                             <input type="text" class="form-control" id="inputSignalName" placeholder="例: トヨタ自動車">
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">推奨時株価 (円)</label>
+                            <label class="form-label">開始時株価 (円)</label>
                             <input type="number" step="0.1" class="form-control" id="inputSignalEntryPrice" placeholder="例: 3000" required>
                         </div>
                         <div class="mb-3">
@@ -925,7 +923,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     const code = item.ticker_code || item.ticker;
                     const name = item.name || code;
                     const price = item.entry_price || 0;
-                    dropdown.innerHTML += `<option value="${{code}}" data-name="${{name}}" data-price="${{price}}">${{code}}: ${{name}} (推奨株価: ${{price.toLocaleString()}}円)</option>`;
+                    dropdown.innerHTML += `<option value="${{code}}" data-name="${{name}}" data-price="${{price}}">${{code}}: ${{name}} (開始時株価: ${{price.toLocaleString()}}円)</option>`;
                 }});
             }}
         }}
@@ -944,7 +942,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
         }}
 
         const PNL_BASIS_LABELS = {{
-            entry: '推奨日 → 最新',
+            entry: '開始日 → 最新',
             '1d': '前営業日 → 最新',
             '1w': '1週間前 → 最新',
             '1m': '1ヶ月前 → 最新'
@@ -956,7 +954,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
         }}
 
         // 選んだ起点の株価。基準日のデータが無い銘柄(登録直後・上場間もない等)は
-        // 推奨価格にフォールバックする。
+        // 開始時株価にフォールバックする。
         function basePriceFor(item, basis, entryP) {{
             if (basis === 'entry') return entryP;
             const refs = item.ref_prices || {{}};
@@ -993,7 +991,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             let totalPnlYen = 0;
 
             if (!history || history.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">現在、推奨シグナルデータはありません。「➕ 画面から推奨候補銘柄を追加」ボタンを押して登録できます。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">現在、シグナルデータはありません。「➕ 画面から推奨候補銘柄を追加」ボタンを押して登録できます。</td></tr>';
                 document.getElementById('aiWinRateText').innerText = '0.0%';
                 document.getElementById('aiWinLossText').innerText = '0件到達 0件到達';
                 document.getElementById('aiReturnText').innerText = '+0円';
@@ -1038,15 +1036,14 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 
                 tbody.innerHTML += `
                     <tr>
-                        <td><small class="fw-bold">${{dtFormatted}}</small></td>
                         <td><strong>${{item.name || item.ticker_code || item.ticker}}</strong></td>
                         <td><span class="badge bg-secondary fs-6">${{item.score || 75}}点</span></td>
                         <td><strong>${{entryP.toLocaleString()}}円</strong><br><small class="text-muted">(${{(simAmt / 10000).toFixed(1)}}万円)</small></td>
-                        <td><small class="text-success">🎯 ${{targetP.toLocaleString()}}円</small><br><small class="text-danger">🛑 ${{stopP.toLocaleString()}}円</small></td>
                         <td>${{priceCol}}</td>
+                        <td><small class="text-success">🎯 ${{targetP.toLocaleString()}}円</small><br><small class="text-danger">🛑 ${{stopP.toLocaleString()}}円</small></td>
                         <td class="${{retCls}}">${{pnlCol}}</td>
                         <td>${{statusCol}}</td>
-                        <td><small class="text-muted">${{closedAtFormatted}}</small></td>
+                        <td><small class="fw-bold">${{dtFormatted}}</small><br><small class="text-muted">${{closedAtFormatted}}</small></td>
                         <td>${{metricsHTML}}</td>
                         <td><button class="btn btn-sm btn-outline-danger" onclick="deleteAISignal('${{item.id || originalIndex}}')">削除</button></td>
                     </tr>
@@ -1076,7 +1073,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             let totalPnl = 0;
 
             if (!portfolio || portfolio.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">現在、実際の購入保有銘柄はありません。「➕ 画面から購入銘柄を即時追加」ボタンを押して登録してください。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">現在、実際の購入保有銘柄はありません。「➕ 画面から購入銘柄を即時追加」ボタンを押して登録してください。</td></tr>';
                 document.getElementById('totalInvestText').innerText = '0.0万円';
                 document.getElementById('totalPnlText').innerText = '+0円';
                 return;
@@ -1115,15 +1112,14 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 
                 tbody.innerHTML += `
                     <tr>
-                        <td><small class="fw-bold">${{bDtFormatted}}</small></td>
                         <td><strong>${{item.name || item.ticker}}</strong></td>
                         <td><span class="badge bg-secondary fs-6">${{item.score || 70}}点</span></td>
                         <td><strong>${{buyP.toLocaleString()}}円</strong><br><small class="text-muted">(${{(invest / 10000).toFixed(1)}}万円)</small></td>
-                        <td><small class="text-success">🎯 ${{targetP.toLocaleString()}}円</small><br><small class="text-danger">🛑 ${{stopP.toLocaleString()}}円</small></td>
                         <td>${{priceCol}}</td>
+                        <td><small class="text-success">🎯 ${{targetP.toLocaleString()}}円</small><br><small class="text-danger">🛑 ${{stopP.toLocaleString()}}円</small></td>
                         <td class="${{pnlCls}}">${{pnlCol}}</td>
                         <td>${{statusCol}}</td>
-                        <td><small class="text-muted">${{closedAtFormatted}}</small></td>
+                        <td><small class="fw-bold">${{bDtFormatted}}</small><br><small class="text-muted">${{closedAtFormatted}}</small></td>
                         <td>${{metricsHTML}}</td>
                         <td><button class="btn btn-sm btn-outline-danger" onclick="deleteRealStock('${{itemId}}')">削除</button></td>
                     </tr>
@@ -1172,7 +1168,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             const theme = document.getElementById('inputSignalTheme').value.trim();
 
             if (!ticker || isNaN(entryPrice)) {{
-                alert('銘柄コードと推奨時株価を入力してください。');
+                alert('銘柄コードと開始時株価を入力してください。');
                 return;
             }}
 
