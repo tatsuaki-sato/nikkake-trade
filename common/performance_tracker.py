@@ -280,7 +280,14 @@ def update_signal_performance(force_refresh: bool = False):
 
         code = item.get("ticker_code", item.get("ticker", ""))
         symbol = code + ".T"
-        
+
+        # 記録時に企業名を引けなかった銘柄(旧21社ハードコード時代のもの)を
+        # 名前解決できるようになった今のロジックで埋め直す。
+        if code and not str(item.get("name") or "").strip().replace(code, "").strip():
+            resolved = get_company_name(code)
+            if resolved != code:
+                item["name"] = resolved
+
         rec_date_str = item.get("date", "08-02").split()[0]
         closed_at_str = item.get("closed_at", "-")
         if closed_at_str != "-" and " " in closed_at_str:

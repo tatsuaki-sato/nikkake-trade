@@ -22,12 +22,32 @@ STOCK_NAMES = {
     "1321": "日経225上場投信"
 }
 
+def _jquants_name(code: str) -> str:
+    """J-Quantsの銘柄マスタ(全上場約4400社、24hキャッシュ)から企業名を引く。
+
+    キー未設定・取得失敗時は空文字を返す(呼び出し側でフォールバックする)。
+    """
+    try:
+        from common.market_data import jquants_available, get_equities_master
+        if not jquants_available():
+            return ""
+        for row in get_equities_master():
+            if row.get("Code", "")[:4] == code:
+                return row.get("CoName", "")
+    except Exception:
+        pass
+    return ""
+
 def get_company_name(ticker: str) -> str:
     """
-    銘柄コード（例: 7203 または 7203.T）から日本企業名を取得
+    銘柄コード（例: 7203 または 7203.T）から日本企業名を取得。
+
+    ハードコードの STOCK_NAMES は21銘柄しかなく、ウォッチリストが東証プライム
+    全体を循環するようになってからは大半がコード表示のままになっていた。
+    J-Quantsの銘柄マスタを優先し、使えない環境では従来の辞書に落とす。
     """
     code = ticker.replace('.T', '').strip()
-    name = STOCK_NAMES.get(code, "")
+    name = STOCK_NAMES.get(code) or _jquants_name(code)
     if name:
         return f"{code} {name}"
     return code
