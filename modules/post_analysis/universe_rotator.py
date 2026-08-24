@@ -16,10 +16,12 @@ DBの `watchlist` テーブルには一切書き込まず、生成した差分�
 ドライランとして扱う(v2設計 Phase 2: まずウォークフォワードで妥当性を検証してから
 本稼働に配線する方針)。本稼働化する際は `apply=True` で呼び出すこと。
 """
+import sys
 import os
 import json
 from datetime import datetime
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from common.factor_engine import build_universe_scores, apply_sector_cap
 from common.global_macro import get_market_regime
 from common.watchlist import load_watchlist, save_watchlist
