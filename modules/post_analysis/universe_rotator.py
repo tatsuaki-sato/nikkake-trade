@@ -12,9 +12,12 @@ modules/post_analysis/universe_rotator.py
     (`data/rotation_state.json` に「何週連続で基準割れか」を記録)。
   - セクターキャップ: 業種(S17)ごとに循環枠内の採用数を制限。
 
-DBの `watchlist` テーブルには一切書き込まず、生成した差分を通知するだけの
-ドライランとして扱う(v2設計 Phase 2: まずウォークフォワードで妥当性を検証してから
-本稼働に配線する方針)。本稼働化する際は `apply=True` で呼び出すこと。
+位置づけ(2026-08-25確定、docs/decisions.md参照): ウォッチリストは「買うリスト」では
+なく daily_scanner / trend_predictor の候補プール。フルバックテストで「ローテーション
+銘柄を全部買う戦略」にはエッジが無いと確認済みだが、候補プールとしての循環は
+「同じ12銘柄しか見ない」という元々の問題を解消するもので、実際のシグナルは
+従来どおり70点のクオンツ判定が門番をする。よって apply=True(自動反映)で運用し、
+core 枠(手動固定)は今後も一切触らない。
 """
 import sys
 import os
@@ -33,35 +36,17 @@ BUFFER_IN_RANK = 20    # この順位以内なら新規IN対象
 BUFFER_OUT_RANK = 40   # この順位より外に落ちたらOUT候補(2週連続で確定)
 MIN_TURNOVER_OKU = 5.0
 
-STATE_FILE = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "data", "rotation_state.json",
-)
 
-
-def _load_state() -> dict:
-    if os.path.exists(STATE_FILE):
-        try:
-            with open(STATE_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {}
-
-
-def _save_state(state: dict):
-    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
-    with open(STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
-
-
-def decide_rotation(ranked_rows: list, current_rotation_tickers: set) -> dict:
+def decide_rotation(ranked_rows: list, current_rotation_tickers: set, strikes_state: dict = None) -> dict:
     """スコア順リストと現在の循環枠から IN/OUT を決める(ヒステリシス込み)。
 
+    strikes_state: {ticker: 連続基準割れ週数}。呼び出し側がwatchlist項目の
+    "strikes" フィールドから渡す(CIランナーのローカルファイルは毎回消えるため、
+    状態はSupabaseのwatchlist項目自体に持たせる)。
     戻り値: {"keep": [...], "in": [...], "out": [...], "watch_out": [...], "new_state": {...}}
     watch_out は「今回基準を割ったが、まだ1回目なので猶予中」の銘柄。
     """
-    state = _load_state()
+    state = strikes_state or {}
     rank_by_ticker = {r["ticker"]: i + 1 for i, r in enumerate(ranked_rows)}
     row_by_ticker = {r["ticker"]: r for r in ranked_rows}
 
@@ -105,9 +90,11 @@ def format_notification(decision: dict, as_of_date: str) -> str:
         "NEUTRAL": "中立(標準配分)",
         "RISK_OFF": "リスクオフ(防御ファクター重視・新規IN停止)",
     }.get(decision.get("regime", "NEUTRAL"), "中立")
+    applied_label = "✅ ウォッチリストに自動反映済み" if decision.get("applied") else "ℹ️ 提案のみ(未反映)"
     lines = [
         f"🔁 **【週次ウォッチリスト・ローテーション】** (基準日: {as_of_date})",
-        f"🌐 レジーム: {regime_label}\n",
+        f"🌐 レジーム: {regime_label} / {applied_label}",
+        "※スキャン候補の入れ替えです。実際のシグナルは従来どおりクオンツ判定(70点)を通過したもののみ。\n",
     ]
     if decision.get("in_suspended"):
         lines.append(f"⏸️ リスクオフのため新規IN {len(decision['in_suspended'])}件を見送り: "
@@ -151,9 +138,11 @@ def run_universe_rotator(apply: bool = False, notify_result: bool = True):
 
     watchlist = load_watchlist()
     current_rotation = {i["ticker"] for i in watchlist if i.get("tier") == "rotation"}
+    strikes_state = {i["ticker"]: i.get("strikes", 0) for i in watchlist if i.get("strikes")}
 
-    decision = decide_rotation(ranked_rows, current_rotation)
+    decision = decide_rotation(ranked_rows, current_rotation, strikes_state)
     decision["regime"] = regime
+    decision["applied"] = apply
 
     # リスクオフ時は新規INを停止する(下落局面での逆張り的な入れ替えは
     # 簡易バックテストでも固定リストに大きく負けた地点があった箇所)。
@@ -189,8 +178,17 @@ def run_universe_rotator(apply: bool = False, notify_result: bool = True):
     if apply:
         out_tickers = {o["ticker"] for o in decision["out"]}
         new_watchlist = [i for i in watchlist if i["ticker"] not in out_tickers]
-        existing_tickers = {i["ticker"] for i in new_watchlist}
         today = datetime.now().strftime("%Y-%m-%d")
+        # ヒステリシス状態(連続基準割れ週数)を項目自体に持たせて永続化する。
+        # 今回基準内に戻った銘柄はカウントをリセット。
+        for i in new_watchlist:
+            if i.get("tier") == "rotation":
+                strikes = decision["new_state"].get(i["ticker"])
+                if strikes:
+                    i["strikes"] = strikes
+                else:
+                    i.pop("strikes", None)
+        existing_tickers = {i["ticker"] for i in new_watchlist}
         for r in decision["in"]:
             if r["ticker"] not in existing_tickers:
                 new_watchlist.append({
@@ -200,7 +198,6 @@ def run_universe_rotator(apply: bool = False, notify_result: bool = True):
                     "reason": f"週次ローテーション(順位{ranked_rows.index(r)+1}位, {r['sector']})",
                 })
         save_watchlist(new_watchlist)
-        _save_state(decision["new_state"])
         print(f"ウォッチリスト更新完了: {len(new_watchlist)}銘柄")
     else:
         print("apply=False のためドライランのみ(ウォッチリストは更新していません)")
@@ -209,6 +206,4 @@ def run_universe_rotator(apply: bool = False, notify_result: bool = True):
 
 
 if __name__ == "__main__":
-    # 本稼働配線前のデフォルトはドライラン。実際にDBを更新する場合は
-    # run_universe_rotator(apply=True) で呼び出すこと。
-    run_universe_rotator(apply=False)
+    run_universe_rotator(apply=True)
