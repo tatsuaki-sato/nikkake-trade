@@ -219,7 +219,9 @@ def fetch_stock_data_robust(tickers: list, force_refresh: bool = False):
     result_dict = {}
     
     try:
-        data = yf.download(tickers, period="1mo", interval="1d", group_by="ticker", progress=False, threads=True)
+        # 3mo: 損益基準日セレクタの「1ヶ月前」(20営業日前)を取るには1moでは足りない
+        # (1mo は約15営業日分しか返らず、20本前が存在しない)。
+        data = yf.download(tickers, period="3mo", interval="1d", group_by="ticker", progress=False, threads=True)
         if data is not None and not data.empty:
             for t in tickers:
                 try:
@@ -320,6 +322,18 @@ def update_signal_performance(force_refresh: bool = False):
                 item["current_price"] = round(latest_close, 1)
                 item["return_pct"] = round(((latest_close - entry_p) / entry_p) * 100, 2)
                 item["pnl_yen"] = round((latest_close - entry_p) * 100, 0)
+
+                # ダッシュボードの損益基準日セレクタ用。既定の「登録時から」は
+                # entry_price を使うので、それ以外の基準日の終値をここで持たせる
+                # (WIN/LOSS判定は常に entry_price 基準のまま)。
+                closes = df["Close"]
+                def _close_back(n):
+                    return round(float(closes.iloc[-1 - n]), 1) if len(closes) > n else None
+                item["ref_prices"] = {
+                    "1d": _close_back(1),    # 前日終値
+                    "1w": _close_back(5),    # 5営業日前
+                    "1m": _close_back(20),   # 20営業日前
+                }
 
                 if not df_after.empty:
                     high_price = float(df_after["High"].max())
@@ -645,10 +659,19 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 </div>
 
                 <div class="card bg-white p-4 card-stat">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                         <h5 class="card-title mb-0">📋 AI推奨シグナル実測追跡リスト</h5>
-                        <small class="text-muted">推奨日時〜最新株価比較の最新損益額(%)・本物の指標(PER/EPS/ATR)を表示</small>
+                        <div class="d-flex align-items-center gap-2">
+                            <label for="pnlBasisSelect" class="text-muted mb-0"><small>損益の起点</small></label>
+                            <select id="pnlBasisSelect" class="form-select form-select-sm" style="width:auto" onchange="onPnlBasisChange()">
+                                <option value="entry">推奨日(登録時)から</option>
+                                <option value="1d">前営業日から</option>
+                                <option value="1w">1週間前から</option>
+                                <option value="1m">1ヶ月前から</option>
+                            </select>
+                        </div>
                     </div>
+                    <div class="mb-2"><small class="text-muted">選んだ起点の株価と最新株価を比較した損益額(%)を表示します。WIN/LOSS判定は常に推奨日基準です。</small></div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
@@ -659,7 +682,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                                     <th>推奨株価 (100株購入額)</th>
                                     <th>目標利確 / 損切り</th>
                                     <th>最新/最終株価</th>
-                                    <th>100株損益額 (%)</th>
+                                    <th>100株損益額 (%)<br><small class="text-muted fw-normal" id="pnlBasisLabel">推奨日 → 最新</small></th>
                                     <th>ステータス</th>
                                     <th>決着日時</th>
                                     <th>指標 (PER/EPS/配当/優待/ATR等)</th>
@@ -913,6 +936,44 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             document.getElementById('inputBuyPrice').value = price;
         }}
 
+        const PNL_BASIS_LABELS = {{
+            entry: '推奨日 → 最新',
+            '1d': '前営業日 → 最新',
+            '1w': '1週間前 → 最新',
+            '1m': '1ヶ月前 → 最新'
+        }};
+
+        function getPnlBasis() {{
+            const sel = document.getElementById('pnlBasisSelect');
+            return sel ? sel.value : 'entry';
+        }}
+
+        // 選んだ起点の株価。基準日のデータが無い銘柄(登録直後・上場間もない等)は
+        // 推奨価格にフォールバックする。
+        function basePriceFor(item, basis, entryP) {{
+            if (basis === 'entry') return entryP;
+            const refs = item.ref_prices || {{}};
+            const p = parseFloat(refs[basis]);
+            return (p && p > 0) ? p : entryP;
+        }}
+
+        function onPnlBasisChange() {{
+            const basis = getPnlBasis();
+            try {{ localStorage.setItem('pnlBasis', basis); }} catch (e) {{}}
+            const label = document.getElementById('pnlBasisLabel');
+            if (label) label.innerText = PNL_BASIS_LABELS[basis] || PNL_BASIS_LABELS.entry;
+            renderAIHistory();
+        }}
+
+        function restorePnlBasis() {{
+            let saved = 'entry';
+            try {{ saved = localStorage.getItem('pnlBasis') || 'entry'; }} catch (e) {{}}
+            const sel = document.getElementById('pnlBasisSelect');
+            if (sel && PNL_BASIS_LABELS[saved]) sel.value = saved;
+            const label = document.getElementById('pnlBasisLabel');
+            if (label) label.innerText = PNL_BASIS_LABELS[saved] || PNL_BASIS_LABELS.entry;
+        }}
+
         async function renderAIHistory() {{
             const history = await fetchHistoryAPI();
             const tbody = document.getElementById('aiTableBody');
@@ -942,9 +1003,10 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 const stopP = parseFloat(item.stop_loss_price || 0);
                 const currP = parseFloat(item.current_price || entryP);
                 const simAmt = entryP * 100;
-                
-                const pnlYen = (currP - entryP) * 100;
-                const retP = entryP > 0 ? ((currP - entryP) / entryP * 100) : 0;
+
+                const baseP = basePriceFor(item, getPnlBasis(), entryP);
+                const pnlYen = (currP - baseP) * 100;
+                const retP = baseP > 0 ? ((currP - baseP) / baseP * 100) : 0;
 
                 const dtFormatted = formatNoYear(item.date);
                 const closedAtFormatted = formatNoYear(item.closed_at);
@@ -1188,6 +1250,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             const nowISO = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0,16);
             document.getElementById('inputBuyDate').value = nowISO;
             document.getElementById('inputSignalDate').value = nowISO;
+            restorePnlBasis();
             renderAIHistory();
             renderRealPortfolio();
         }});
