@@ -44,20 +44,36 @@ def db_load_history() -> list:
     resp = sb.table("signal_history").select("data").order("created_at", desc=False).execute()
     return [row["data"] for row in (resp.data or [])]
 
-def db_save_history(history: list):
-    """シグナル履歴リストを全件 upsert"""
+def _replace_table(table: str, rows: list):
+    """テーブルの中身を rows で置き換える。
+
+    「全削除 → 再挿入」の順にすると、挿入側が落ちた瞬間にテーブルが空のまま
+    残る(2026-08-23に実際に発生し、シグナル履歴10件がDBから消えた。
+    performance_tracker 側の except がJSONフォールバックに逃がすため、
+    ローカルには残るがDBは空という不整合になる)。
+    先に upsert を通し、そのあとで今回の一覧に無い行だけを消す順序にして、
+    途中で失敗しても既存データが残るようにする。
+    """
     sb = get_client()
-    # 全削除してから再挿入（シンプル＆確実）
-    sb.table("signal_history").delete().neq("id", "___never___").execute()
-    if history:
-        rows = [
-            {
-                "id": item.get("id") or f"auto_{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
-                "data": item
-            }
-            for item in history
-        ]
-        sb.table("signal_history").upsert(rows).execute()
+    if not rows:
+        # 呼び出し側が明示的に「最後の1件を削除した」ケースのみここに来る
+        sb.table(table).delete().neq("id", "___never___").execute()
+        return
+    for i in range(0, len(rows), 100):
+        sb.table(table).upsert(rows[i:i + 100]).execute()
+    keep_ids = [r["id"] for r in rows]
+    sb.table(table).delete().not_.in_("id", keep_ids).execute()
+
+def db_save_history(history: list):
+    """シグナル履歴リストを全件保存"""
+    rows = [
+        {
+            "id": item.get("id") or f"auto_{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
+            "data": item
+        }
+        for item in history
+    ]
+    _replace_table("signal_history", rows)
 
 def db_add_signal(item: dict):
     """新しいシグナルを1件追加"""
@@ -80,12 +96,8 @@ def db_load_watchlist() -> list:
     return [row["data"] for row in (resp.data or [])]
 
 def db_save_watchlist(items: list):
-    """ウォッチリスト全件を upsert"""
-    sb = get_client()
-    sb.table("watchlist").delete().neq("id", "___never___").execute()
-    if items:
-        rows = [{"id": item["ticker"], "data": item} for item in items]
-        sb.table("watchlist").upsert(rows).execute()
+    """ウォッチリスト全件を保存"""
+    _replace_table("watchlist", [{"id": item["ticker"], "data": item} for item in items])
 
 def db_add_watchlist_item(item: dict):
     """ウォッチリスト銘柄を1件追加"""
@@ -107,18 +119,15 @@ def db_load_portfolio() -> list:
     return [row["data"] for row in (resp.data or [])]
 
 def db_save_portfolio(portfolio: list):
-    """ポートフォリオ全件を upsert"""
-    sb = get_client()
-    sb.table("real_portfolio").delete().neq("id", "___never___").execute()
-    if portfolio:
-        rows = [
-            {
-                "id": item.get("id") or f"real_auto_{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
-                "data": item
-            }
-            for item in portfolio
-        ]
-        sb.table("real_portfolio").upsert(rows).execute()
+    """ポートフォリオ全件を保存"""
+    rows = [
+        {
+            "id": item.get("id") or f"real_auto_{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
+            "data": item
+        }
+        for item in portfolio
+    ]
+    _replace_table("real_portfolio", rows)
 
 def db_add_portfolio_item(item: dict):
     """新しいポートフォリオ銘柄を1件追加"""
