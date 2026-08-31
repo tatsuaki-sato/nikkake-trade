@@ -2,7 +2,7 @@ import os
 import json
 import uvicorn
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -16,6 +16,24 @@ from common.performance_tracker import (
 )
 from common.stock_names import get_company_name
 from common.watchlist import load_watchlist, add_ticker, remove_ticker
+
+def fetch_close_on(code: str, target_dt: datetime):
+    """指定日(以前で直近)の終値を返す。取得できなければ None。"""
+    try:
+        import yfinance as yf
+        import pandas as pd
+        end = target_dt + timedelta(days=1)
+        start = target_dt - timedelta(days=10)
+        df = yf.download(f"{code}.T", start=start.strftime("%Y-%m-%d"), end=end.strftime("%Y-%m-%d"),
+                         progress=False, auto_adjust=True)
+        if df is None or df.empty:
+            return None
+        if getattr(df.columns, "nlevels", 1) > 1:
+            df.columns = df.columns.get_level_values(0)
+        return round(float(df["Close"].dropna().iloc[-1]), 1)
+    except Exception as e:
+        print(f"開始時株価の再取得に失敗 ({code}): {e}")
+        return None
 
 app = FastAPI(title="nikkake-trade - AI Signal & Real Portfolio Web App")
 
@@ -139,6 +157,52 @@ def add_api_history(signal: AISignalInput, background_tasks: BackgroundTasks):
     save_history(history)
     background_tasks.add_task(update_signal_performance, True)
     return {"status": "success", "added": new_item}
+
+class BulkStartDateInput(BaseModel):
+    ids: list
+    date: str  # "YYYY-MM-DDTHH:MM" (datetime-local) または "MM-DD HH:MM"
+
+@app.post("/api/history/bulk-start-date")
+def bulk_update_start_date(payload: BulkStartDateInput, background_tasks: BackgroundTasks):
+    """選択した銘柄の開始日時をまとめて更新する。
+
+    開始日時だけ動かすと「開始時株価」が別の日の値のまま残り損益が意味を成さないので、
+    その日の終値を取り直して開始時株価も揃える(取得できない銘柄は日時のみ更新)。
+    追跡をやり直す操作なので、判定状態もOPENに戻す。
+    """
+    raw = payload.date.strip().replace("T", " ")
+    try:
+        base_dt = datetime.strptime(raw, "%Y-%m-%d %H:%M")
+        display = base_dt.strftime("%m-%d %H:%M")
+    except ValueError:
+        base_dt = None
+        display = raw
+
+    history = load_history()
+    targets = {str(i) for i in payload.ids}
+    updated = []
+    for item in history:
+        if str(item.get("id")) not in targets:
+            continue
+        item["date"] = display
+        item["status"] = "OPEN"
+        item["closed_at"] = "-"
+        if base_dt:
+            code = item.get("ticker_code") or item.get("ticker", "")
+            new_price = fetch_close_on(str(code).replace(".T", ""), base_dt)
+            if new_price:
+                item["entry_price"] = new_price
+                item["sim_amount"] = new_price * 100
+                item["current_price"] = new_price
+                item["max_price"] = new_price
+                item["min_price"] = new_price
+                item["return_pct"] = 0.0
+                item["pnl_yen"] = 0.0
+        updated.append(item.get("id"))
+
+    save_history(history)
+    background_tasks.add_task(update_signal_performance, True)
+    return {"status": "success", "updated": updated, "date": display}
 
 @app.delete("/api/history/{signal_id}")
 def delete_api_history(signal_id: str):

@@ -7,7 +7,7 @@ import yfinance as yf
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
-from common.stock_names import get_company_name
+from common.stock_names import get_company_name, get_company_sector
 
 try:
     import curl_cffi
@@ -293,6 +293,10 @@ def update_signal_performance(force_refresh: bool = False):
             resolved = get_company_name(code)
             if resolved != code:
                 item["name"] = resolved
+        if code and not item.get("sector"):
+            sector = get_company_sector(code)
+            if sector:
+                item["sector"] = sector
 
         rec_date_str = item.get("date", "08-02").split()[0]
         closed_at_str = item.get("closed_at", "-")
@@ -671,9 +675,9 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     </div>
                 </div>
 
-                <div class="card bg-white p-4 card-stat">
+                <div class="card bg-white p-4 card-stat mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                        <h5 class="card-title mb-0">📋 AI推奨シグナル実測追跡リスト</h5>
+                        <h5 class="card-title mb-0">👀 監視中 <span class="badge bg-warning text-dark" id="aiOpenBadge">0件</span></h5>
                         <div class="d-flex align-items-center gap-2">
                             <label for="pnlBasisSelect" class="text-muted mb-0"><small>損益の起点</small></label>
                             <select id="pnlBasisSelect" class="form-select form-select-sm" style="width:auto" onchange="onPnlBasisChange()">
@@ -684,11 +688,18 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                             </select>
                         </div>
                     </div>
-                    <div class="mb-2"><small class="text-muted">選んだ起点の株価と最新株価を比較した損益額(%)を表示します。WIN/LOSS判定は常に開始日基準です。</small></div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-2 p-2 bg-light rounded">
+                        <small class="text-muted">選択した銘柄の開始日時を一括更新:</small>
+                        <input type="datetime-local" class="form-control form-control-sm" style="width:auto" id="bulkStartDate">
+                        <button class="btn btn-sm btn-outline-primary" onclick="bulkUpdateStartDate()">選択銘柄をこの日時で開始し直す</button>
+                        <small class="text-muted" id="bulkSelectedCount">0件選択中</small>
+                    </div>
+                    <div class="mb-2"><small class="text-muted">選んだ起点の株価と最新株価を比較した損益額(%)を表示します。一括更新すると、その日の終値を開始時株価として取り直します。</small></div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
                                 <tr>
+                                    <th style="width:34px"><input type="checkbox" class="form-check-input" id="aiSelectAll" onchange="toggleSelectAll(this)"></th>
                                     <th>企業名 (コード)</th>
                                     <th>スコア</th>
                                     <th>開始時株価 (100株購入額)</th>
@@ -702,6 +713,35 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                                 </tr>
                             </thead>
                             <tbody id="aiTableBody">
+                                <!-- JS動的レンダリング -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card bg-white p-4 card-stat">
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <h5 class="card-title mb-0">🏁 決着済み <span class="badge bg-secondary" id="aiClosedBadge">0件</span></h5>
+                        <small class="text-muted">利確・損切りに到達して判定が確定したシグナル</small>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    
+                                    <th>企業名 (コード)</th>
+                                    <th>スコア</th>
+                                    <th>開始時株価 (100株購入額)</th>
+                                    <th>最新/最終株価</th>
+                                    <th>目標利確 / 損切り</th>
+                                    <th>100株損益額 (%)</th>
+                                    <th>ステータス</th>
+                                    <th>開始日時 / 決着日時</th>
+                                    <th>指標 (PER/EPS/配当/優待/ATR等)</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="aiClosedTableBody">
                                 <!-- JS動的レンダリング -->
                             </tbody>
                         </table>
@@ -985,10 +1025,54 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             if (label) label.innerText = PNL_BASIS_LABELS[saved] || PNL_BASIS_LABELS.entry;
         }}
 
+        // 業種(J-Quantsの17業種区分)を企業名の上に小さく出す。テーマ経由で
+        // 登録されたシグナルは相場テーマ名(半導体など)があるのでそちらを優先。
+        function sectorLabel(item) {{
+            const theme = (item.details && item.details.Theme) ? String(item.details.Theme) : '';
+            const m = theme.match(/】(.+)$/);
+            const label = (m ? m[1] : '') || item.sector || '';
+            if (!label) return '';
+            const cls = m ? 'bg-info-subtle text-info-emphasis' : 'bg-light text-secondary';
+            return `<span class="badge ${{cls}} fw-normal d-block mb-1" style="width:fit-content;font-size:.7rem">${{label}}</span>`;
+        }}
+
+        function toggleSelectAll(box) {{
+            document.querySelectorAll('.ai-row-check').forEach(c => c.checked = box.checked);
+            updateSelectedCount();
+        }}
+
+        function selectedSignalIds() {{
+            return [...document.querySelectorAll('.ai-row-check:checked')].map(c => c.value).filter(v => v);
+        }}
+
+        function updateSelectedCount() {{
+            const el = document.getElementById('bulkSelectedCount');
+            if (el) el.innerText = selectedSignalIds().length + '件選択中';
+        }}
+
+        async function bulkUpdateStartDate() {{
+            const ids = selectedSignalIds();
+            const dateVal = document.getElementById('bulkStartDate').value;
+            if (ids.length === 0) {{ alert('銘柄を選択してください。'); return; }}
+            if (!dateVal) {{ alert('開始日時を指定してください。'); return; }}
+            const res = await fetch('/api/history/bulk-start-date', {{
+                method: 'POST',
+                headers: {{'Content-Type': 'application/json'}},
+                body: JSON.stringify({{ids: ids, date: dateVal}})
+            }});
+            if (!res.ok) {{ alert('更新に失敗しました。'); return; }}
+            const data = await res.json();
+            await renderAIHistory();
+            updateSelectedCount();
+            alert(`${{data.updated.length}}件の開始日時を ${{data.date}} に更新しました。開始時株価もその日の終値に揃えています。`);
+        }}
+
         async function renderAIHistory() {{
             const history = await fetchHistoryAPI();
             const tbody = document.getElementById('aiTableBody');
+            const tbodyClosed = document.getElementById('aiClosedTableBody');
             tbody.innerHTML = '';
+            if (tbodyClosed) tbodyClosed.innerHTML = '';
 
             let wins = 0;
             let losses = 0;
@@ -997,7 +1081,10 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             let totalPnlYen = 0;
 
             if (!history || history.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">現在、シグナルデータはありません。「➕ 画面から推奨候補銘柄を追加」ボタンを押して登録できます。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">現在、シグナルデータはありません。「➕ 画面から推奨候補銘柄を追加」ボタンを押して登録できます。</td></tr>';
+                if (tbodyClosed) tbodyClosed.innerHTML = '<tr><td colspan="10" class="text-center text-muted">決着済みのシグナルはまだありません。</td></tr>';
+                document.getElementById('aiOpenBadge').innerText = '0件';
+                document.getElementById('aiClosedBadge').innerText = '0件';
                 document.getElementById('aiWinRateText').innerText = '0.0%';
                 document.getElementById('aiWinLossText').innerText = '0件到達 0件到達';
                 document.getElementById('aiReturnText').innerText = '+0円';
@@ -1009,6 +1096,8 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             history.slice().reverse().forEach((item, revIndex) => {{
                 const originalIndex = history.length - 1 - revIndex;
                 const st = item.status;
+                const isOpen = (st !== 'WIN' && st !== 'LOSS');
+                const tbody = isOpen ? document.getElementById('aiTableBody') : (tbodyClosed || document.getElementById('aiTableBody'));
                 const entryP = parseFloat(item.entry_price || 0);
                 const targetP = parseFloat(item.target_price || 0);
                 const stopP = parseFloat(item.stop_loss_price || 0);
@@ -1036,13 +1125,20 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 const retSign = pnlYen >= 0 ? '+' : '';
                 const metricsHTML = formatMetricsHTML(item.details);
 
-                const priceCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `${{currP.toLocaleString()}}円`;
+                const diffFromEntry = currP - entryP;
+                const diffCls = diffFromEntry >= 0 ? 'text-success' : 'text-danger';
+                const diffTxt = `<small class="${{diffCls}}">(${{diffFromEntry >= 0 ? '+' : ''}}${{Math.round(diffFromEntry).toLocaleString()}}円)</small>`;
+                const priceCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `${{currP.toLocaleString()}}円<br>${{diffTxt}}`;
                 const pnlCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `<strong>${{retSign}}${{Math.round(pnlYen).toLocaleString()}}円 (${{retSign}}${{retP.toFixed(2)}}%)</strong>`;
                 const statusCol = isFetchingBackground ? '<span class="updating-badge">🔄 判定中</span>' : badge;
 
+                const sectorTag = sectorLabel(item);
+                const cbCell = isOpen ? `<td><input type="checkbox" class="form-check-input ai-row-check" value="${{item.id || ''}}" onchange="updateSelectedCount()"></td>` : '';
+
                 tbody.innerHTML += `
                     <tr>
-                        <td><strong>${{item.name || item.ticker_code || item.ticker}}</strong></td>
+                        ${{cbCell}}
+                        <td>${{sectorTag}}<strong>${{item.name || item.ticker_code || item.ticker}}</strong></td>
                         <td><span class="badge bg-secondary fs-6">${{item.score || 75}}点</span></td>
                         <td><strong>${{entryP.toLocaleString()}}円</strong><br><small class="text-muted">(${{(simAmt / 10000).toFixed(1)}}万円)</small></td>
                         <td>${{priceCol}}</td>
@@ -1068,6 +1164,13 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             document.getElementById('aiReturnPctText').innerText = '最新評価リターン通算: ' + (totalReturnPct >= 0 ? '+' : '') + totalReturnPct.toFixed(1) + '%';
             document.getElementById('aiTotalCountText').innerText = history.length + '件';
             document.getElementById('aiOpenCountText').innerText = '監視中: ' + (history.length - totalClosed) + '件';
+
+            const openCount = history.length - totalClosed;
+            document.getElementById('aiOpenBadge').innerText = openCount + '件';
+            document.getElementById('aiClosedBadge').innerText = totalClosed + '件';
+            if (openCount === 0) tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">監視中のシグナルはありません。</td></tr>';
+            if (tbodyClosed && totalClosed === 0) tbodyClosed.innerHTML = '<tr><td colspan="10" class="text-center text-muted">決着済みのシグナルはまだありません。</td></tr>';
+            updateSelectedCount();
         }}
 
         async function renderRealPortfolio() {{
@@ -1112,7 +1215,10 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     st.includes('LOSS') ? '<span class="badge bg-danger">LOSS 損切到達</span>' : '<span class="badge bg-primary">HOLD 保有中</span>'
                 );
 
-                const priceCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `${{currP.toLocaleString()}}円`;
+                const diffFromEntry = currP - entryP;
+                const diffCls = diffFromEntry >= 0 ? 'text-success' : 'text-danger';
+                const diffTxt = `<small class="${{diffCls}}">(${{diffFromEntry >= 0 ? '+' : ''}}${{Math.round(diffFromEntry).toLocaleString()}}円)</small>`;
+                const priceCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `${{currP.toLocaleString()}}円<br>${{diffTxt}}`;
                 const pnlCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `<strong>${{pnlSign}}${{Math.round(pnlY).toLocaleString()}}円 (${{pnlSign}}${{pnlP.toFixed(2)}}%)</strong>`;
                 const statusCol = isFetchingBackground ? '<span class="updating-badge">🔄 判定中</span>' : badge;
 

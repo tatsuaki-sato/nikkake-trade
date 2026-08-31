@@ -38,6 +38,26 @@ def _jquants_name(code: str) -> str:
         pass
     return ""
 
+def get_company_sector(ticker: str) -> str:
+    """東証の17業種区分(S17Nm)を返す。例: 「電機・精密」「銀行」「自動車・輸送機」。
+
+    「AI」「半導体」のようなテーマ名は取引所の公式分類には無く(株探などが独自に
+    付けている相場テーマ)、全銘柄を網羅した信頼できる対応表が無い。ここでは
+    J-Quantsの銘柄マスタが持つ公式の業種区分を使う。テーマ経由で登録された
+    シグナルは details["Theme"] に相場テーマが入るので、表示側で併用する。
+    """
+    code = ticker.replace('.T', '').strip()
+    try:
+        from common.market_data import jquants_available, get_equities_master
+        if not jquants_available():
+            return ""
+        for row in get_equities_master():
+            if row.get("Code", "")[:4] == code:
+                return row.get("S17Nm", "") or ""
+    except Exception:
+        pass
+    return ""
+
 def get_company_name(ticker: str) -> str:
     """
     銘柄コード（例: 7203 または 7203.T）から日本企業名を取得。
