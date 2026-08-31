@@ -193,11 +193,15 @@ def bulk_update_start_date(payload: BulkStartDateInput, background_tasks: Backgr
             if new_price:
                 item["entry_price"] = new_price
                 item["sim_amount"] = new_price * 100
-                item["current_price"] = new_price
                 item["max_price"] = new_price
                 item["min_price"] = new_price
-                item["return_pct"] = 0.0
-                item["pnl_yen"] = 0.0
+                # current_price は最新終値なので触らない。ここで開始時株価と同じ値に
+                # 上書きすると、バックグラウンドの株価再取得が終わるまでの十数秒間、
+                # 差額と損益が必ず0に見えてしまう。代わりに手持ちの最新終値で
+                # その場で計算し直し、画面が即座に正しい値になるようにする。
+                latest = float(item.get("current_price") or new_price)
+                item["return_pct"] = round(((latest - new_price) / new_price) * 100, 2)
+                item["pnl_yen"] = round((latest - new_price) * 100, 0)
         updated.append(item.get("id"))
 
     save_history(history)
