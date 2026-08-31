@@ -1190,7 +1190,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     st.includes('LOSS') ? '<span class="badge bg-danger">LOSS 損切到達</span>' : '<span class="badge bg-primary">HOLD 保有中</span>'
                 );
 
-                const diffFromEntry = currP - entryP;
+                const diffFromEntry = currP - buyP;
                 const diffCls = diffFromEntry >= 0 ? 'text-success' : 'text-danger';
                 const diffTxt = `<small class="${{diffCls}}">(${{diffFromEntry >= 0 ? '+' : ''}}${{Math.round(diffFromEntry).toLocaleString()}}円)</small>`;
                 const priceCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `${{currP.toLocaleString()}}円<br>${{diffTxt}}`;

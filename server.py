@@ -191,6 +191,17 @@ def bulk_update_start_date(payload: BulkStartDateInput, background_tasks: Backgr
             code = item.get("ticker_code") or item.get("ticker", "")
             new_price = fetch_close_on(str(code).replace(".T", ""), base_dt)
             if new_price:
+                # 利確/損切りラインは元の開始時株価から引かれているので、開始時株価だけ
+                # 差し替えるとラインが取り残される。実際、8月頭に開始日を戻したときは
+                # 損切りラインが新しい開始時株価より上に来てしまい(福井銀行: 開始5,680円 /
+                # 損切6,411円)、その場で「LOSS なのに +73,140円」という記録が量産された。
+                # 元の値幅の比率を保ったまま新しい開始時株価に付け直す。
+                old_entry = float(item.get("entry_price") or new_price)
+                if old_entry > 0:
+                    for key in ("target_price", "stop_loss_price"):
+                        old_line = item.get(key)
+                        if old_line:
+                            item[key] = round(new_price * (float(old_line) / old_entry), 1)
                 item["entry_price"] = new_price
                 item["sim_amount"] = new_price * 100
                 item["max_price"] = new_price
