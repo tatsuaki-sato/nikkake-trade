@@ -107,11 +107,17 @@ def record_signal(ticker: str, entry_price: float, target_price: float, stop_los
     history = load_history()
     now_str = datetime.now().strftime("%m-%d %H:%M")
     code = ticker.replace('.T', '').strip()
-    
+
+    # 同じ銘柄が既に監視中(OPEN)なら二重登録しない。
+    # 以前は「同じ銘柄 かつ 同じ日付」でしか弾いていなかったため、スキャナーが
+    # 毎日走るたびに同一銘柄が積み上がっていた(東京エレクトロンが8件など)。
+    # 利確/損切りで決着済み(WIN/LOSS)なら、新しいシグナルとして再登録してよい。
     for item in history:
-        if item.get("ticker_code") == code and item.get("date", "").startswith(datetime.now().strftime("%m-%d")):
+        item_code = item.get("ticker_code") or item.get("ticker", "")
+        if str(item_code).replace('.T', '').strip() == code and item.get("status") == "OPEN":
             return
-            
+
+
     name = get_company_name(code)
     sim_amount = entry_price * 100
     
