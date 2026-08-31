@@ -379,9 +379,19 @@ def update_signal_performance(force_refresh: bool = False):
                     if trigger_status:
                         item["status"] = trigger_status
                         item["closed_at"] = trigger_closed_at if trigger_closed_at else now_time_str
+                        # 決着済みの損益は「決着した時点の価格」で確定させる。
+                        # 最新終値で計算し続けると、損切りに当たった後で株価が戻った銘柄が
+                        # LOSSなのにプラス表示になり、勝っているように見えてしまう。
+                        # 約定するのは利確/損切りのライン上なので、その価格を最終価格とする。
+                        close_p = target_p if trigger_status == "WIN" else stop_p
+                        item["close_price"] = round(close_p, 1)
+                        item["current_price"] = round(close_p, 1)
+                        item["return_pct"] = round(((close_p - entry_p) / entry_p) * 100, 2)
+                        item["pnl_yen"] = round((close_p - entry_p) * 100, 0)
                     else:
                         item["status"] = "OPEN"
                         item["closed_at"] = "-"
+                        item.pop("close_price", None)
                 else:
                     item["max_price"] = round(max(item.get("max_price", entry_p), latest_close), 1)
                     item["min_price"] = round(min(item.get("min_price", entry_p), latest_close), 1)
@@ -675,9 +685,9 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     </div>
                 </div>
 
-                <div class="card bg-white p-4 card-stat mb-4">
+                <div class="card bg-white p-4 card-stat">
                     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                        <h5 class="card-title mb-0">👀 監視中 <span class="badge bg-warning text-dark" id="aiOpenBadge">0件</span></h5>
+                        <h5 class="card-title mb-0">📋 AI推奨シグナル実測追跡リスト <span class="badge bg-warning text-dark" id="aiOpenBadge">0件</span><span class="badge bg-secondary ms-1" id="aiClosedBadge">0件</span></h5>
                         <div class="d-flex align-items-center gap-2">
                             <label for="pnlBasisSelect" class="text-muted mb-0"><small>損益の起点</small></label>
                             <select id="pnlBasisSelect" class="form-select form-select-sm" style="width:auto" onchange="onPnlBasisChange()">
@@ -713,35 +723,6 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                                 </tr>
                             </thead>
                             <tbody id="aiTableBody">
-                                <!-- JS動的レンダリング -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="card bg-white p-4 card-stat">
-                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                        <h5 class="card-title mb-0">🏁 決着済み <span class="badge bg-secondary" id="aiClosedBadge">0件</span></h5>
-                        <small class="text-muted">利確・損切りに到達して判定が確定したシグナル</small>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle">
-                            <thead class="table-light">
-                                <tr>
-                                    
-                                    <th>企業名 (コード)</th>
-                                    <th>スコア</th>
-                                    <th>開始時株価 (100株購入額)</th>
-                                    <th>最新/最終株価</th>
-                                    <th>目標利確 / 損切り</th>
-                                    <th>100株損益額 (%)</th>
-                                    <th>ステータス</th>
-                                    <th>開始日時 / 決着日時</th>
-                                    <th>指標 (PER/EPS/配当/優待/ATR等)</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="aiClosedTableBody">
                                 <!-- JS動的レンダリング -->
                             </tbody>
                         </table>
@@ -1070,9 +1051,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
         async function renderAIHistory() {{
             const history = await fetchHistoryAPI();
             const tbody = document.getElementById('aiTableBody');
-            const tbodyClosed = document.getElementById('aiClosedTableBody');
             tbody.innerHTML = '';
-            if (tbodyClosed) tbodyClosed.innerHTML = '';
 
             let wins = 0;
             let losses = 0;
@@ -1082,9 +1061,8 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 
             if (!history || history.length === 0) {{
                 tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">現在、シグナルデータはありません。「➕ 画面から推奨候補銘柄を追加」ボタンを押して登録できます。</td></tr>';
-                if (tbodyClosed) tbodyClosed.innerHTML = '<tr><td colspan="10" class="text-center text-muted">決着済みのシグナルはまだありません。</td></tr>';
-                document.getElementById('aiOpenBadge').innerText = '0件';
-                document.getElementById('aiClosedBadge').innerText = '0件';
+                document.getElementById('aiOpenBadge').innerText = '監視中 0件';
+                document.getElementById('aiClosedBadge').innerText = '決着済み 0件';
                 document.getElementById('aiWinRateText').innerText = '0.0%';
                 document.getElementById('aiWinLossText').innerText = '0件到達 0件到達';
                 document.getElementById('aiReturnText').innerText = '+0円';
@@ -1097,14 +1075,13 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 const originalIndex = history.length - 1 - revIndex;
                 const st = item.status;
                 const isOpen = (st !== 'WIN' && st !== 'LOSS');
-                const tbody = isOpen ? document.getElementById('aiTableBody') : (tbodyClosed || document.getElementById('aiTableBody'));
                 const entryP = parseFloat(item.entry_price || 0);
                 const targetP = parseFloat(item.target_price || 0);
                 const stopP = parseFloat(item.stop_loss_price || 0);
                 const currP = parseFloat(item.current_price || entryP);
                 const simAmt = entryP * 100;
 
-                const baseP = basePriceFor(item, getPnlBasis(), entryP);
+                const baseP = isOpen ? basePriceFor(item, getPnlBasis(), entryP) : entryP;
                 const pnlYen = (currP - baseP) * 100;
                 const retP = baseP > 0 ? ((currP - baseP) / baseP * 100) : 0;
 
@@ -1166,10 +1143,8 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             document.getElementById('aiOpenCountText').innerText = '監視中: ' + (history.length - totalClosed) + '件';
 
             const openCount = history.length - totalClosed;
-            document.getElementById('aiOpenBadge').innerText = openCount + '件';
-            document.getElementById('aiClosedBadge').innerText = totalClosed + '件';
-            if (openCount === 0) tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">監視中のシグナルはありません。</td></tr>';
-            if (tbodyClosed && totalClosed === 0) tbodyClosed.innerHTML = '<tr><td colspan="10" class="text-center text-muted">決着済みのシグナルはまだありません。</td></tr>';
+            document.getElementById('aiOpenBadge').innerText = '監視中 ' + openCount + '件';
+            document.getElementById('aiClosedBadge').innerText = '決着済み ' + totalClosed + '件';
             updateSelectedCount();
         }}
 
