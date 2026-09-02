@@ -1109,7 +1109,11 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 const statusCol = isFetchingBackground ? '<span class="updating-badge">🔄 判定中</span>' : badge;
 
                 const sectorTag = sectorLabel(item);
-                const cbCell = isOpen ? `<td><input type="checkbox" class="form-check-input ai-row-check" value="${{item.id || ''}}" onchange="updateSelectedCount()"></td>` : '';
+                // 決着済みの行にもチェックボックスを出す。ここを空文字にしていたため
+                // 決着済み行だけセルが1つ足りず、以降の列が丸ごと左にずれていた。
+                // 決着した銘柄を選んで開始日時を入れ直すのが再追跡の手順なので、
+                // 選択できること自体が必要。
+                const cbCell = `<td><input type="checkbox" class="form-check-input ai-row-check" value="${{item.id || ''}}" onchange="updateSelectedCount()"></td>`;
 
                 tbody.innerHTML += `
                     <tr>
