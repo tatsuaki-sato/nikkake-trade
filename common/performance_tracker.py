@@ -339,9 +339,7 @@ def update_signal_performance(force_refresh: bool = False):
                 item["return_pct"] = round(((latest_close - entry_p) / entry_p) * 100, 2)
                 item["pnl_yen"] = round((latest_close - entry_p) * 100, 0)
 
-                # ダッシュボードの損益基準日セレクタ用。既定の「登録時から」は
-                # entry_price を使うので、それ以外の基準日の終値をここで持たせる
-                # (WIN/LOSS判定は常に entry_price 基準のまま)。
+                # ダッシュボードの損益基準日セレクタ用。
                 closes = df["Close"]
                 def _close_back(n):
                     return round(float(closes.iloc[-1 - n]), 1) if len(closes) > n else None
@@ -350,6 +348,42 @@ def update_signal_performance(force_refresh: bool = False):
                     "1w": _close_back(5),    # 5営業日前
                     "1m": _close_back(20),   # 20営業日前
                 }
+
+                # 起点ごとの決着判定。「その起点から今日までの間に利確/損切りへ
+                # 到達したか」は起点によって変わるので、起点ごとに独立して評価する。
+                # 到達していればその時点の価格で損益が確定し、していなければ最新値で
+                # 評価中(OPEN)になる。利確/損切りラインは開始時株価からの値幅比率
+                # なので、起点株価に合わせて同じ比率で引き直す。
+                target_ratio = target_p / entry_p if entry_p else None
+                stop_ratio = stop_p / entry_p if entry_p else None
+
+                def _evaluate_from(start_pos, base_price):
+                    """start_pos(dfの位置)以降で利確/損切りに到達したかを判定する"""
+                    if base_price is None or not target_ratio or not stop_ratio:
+                        return None
+                    t_line = round(base_price * target_ratio, 1)
+                    s_line = round(base_price * stop_ratio, 1)
+                    window = df.iloc[start_pos:]
+                    for idx, row in window.iterrows():
+                        if float(row["Low"]) <= s_line:
+                            return {"status": "LOSS", "price": s_line,
+                                    "closed_at": pd.to_datetime(idx).strftime("%m-%d 15:30"),
+                                    "base": base_price, "target": t_line, "stop": s_line}
+                        if float(row["High"]) >= t_line:
+                            return {"status": "WIN", "price": t_line,
+                                    "closed_at": pd.to_datetime(idx).strftime("%m-%d 15:30"),
+                                    "base": base_price, "target": t_line, "stop": s_line}
+                    return {"status": "OPEN", "price": round(latest_close, 1), "closed_at": "-",
+                            "base": base_price, "target": t_line, "stop": s_line}
+
+                basis_results = {}
+                # 開始日起点: 記録日以降(df_afterの開始位置)から評価
+                entry_pos = len(df) - len(df_after) if not df_after.empty else len(df) - 1
+                basis_results["entry"] = _evaluate_from(entry_pos, round(entry_p, 1))
+                for key, back in (("1d", 1), ("1w", 5), ("1m", 20)):
+                    if len(closes) > back:
+                        basis_results[key] = _evaluate_from(len(df) - 1 - back, _close_back(back))
+                item["basis_results"] = {k: v for k, v in basis_results.items() if v}
 
                 if not df_after.empty:
                     high_price = float(df_after["High"].max())
@@ -1080,21 +1114,27 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 
             history.slice().reverse().forEach((item, revIndex) => {{
                 const originalIndex = history.length - 1 - revIndex;
-                const st = item.status;
-                const isOpen = (st !== 'WIN' && st !== 'LOSS');
                 const entryP = parseFloat(item.entry_price || 0);
-                const targetP = parseFloat(item.target_price || 0);
-                const stopP = parseFloat(item.stop_loss_price || 0);
-                const currP = parseFloat(item.current_price || entryP);
+
+                // 決着したかどうかは起点ごとに変わる(「1週間前を起点にしたら、その
+                // 1週間で利確/損切りに届いたか」)。サーバが起点別に判定した結果を使い、
+                // 届いていればその時点の価格で確定、届いていなければ最新値で評価中。
+                const basis = getPnlBasis();
+                const br = (item.basis_results || {{}})[basis];
+                const st = br ? br.status : item.status;
+                const isOpen = (st !== 'WIN' && st !== 'LOSS');
+                const targetP = br ? parseFloat(br.target) : parseFloat(item.target_price || 0);
+                const stopP = br ? parseFloat(br.stop) : parseFloat(item.stop_loss_price || 0);
+                const currP = br ? parseFloat(br.price) : parseFloat(item.current_price || entryP);
                 // 損益の起点を切り替えたら、株価・購入額・差額もその起点に揃える。
                 // 決着済みは結果が確定しているので常に開始時株価のまま。
-                const baseP = isOpen ? basePriceFor(item, getPnlBasis(), entryP) : entryP;
+                const baseP = br ? parseFloat(br.base) : basePriceFor(item, basis, entryP);
                 const simAmt = baseP * 100;
                 const pnlYen = (currP - baseP) * 100;
                 const retP = baseP > 0 ? ((currP - baseP) / baseP * 100) : 0;
 
                 const dtFormatted = formatNoYear(item.date);
-                const closedAtFormatted = formatNoYear(item.closed_at);
+                const closedAtFormatted = formatNoYear(br ? br.closed_at : item.closed_at);
                 
                 if (st === 'WIN') {{ wins++; totalClosed++; }}
                 else if (st === 'LOSS') {{ losses++; totalClosed++; }}

@@ -8,10 +8,10 @@
     "stop_loss_price": 2820.0,
     "score": 85,
     "status": "OPEN",
-    "current_price": 3116.0,
-    "max_price": 3233.0,
+    "current_price": 3133.0,
+    "max_price": 3269.0,
     "min_price": 2686.0,
-    "return_pct": 3.87,
+    "return_pct": 4.43,
     "details": {
       "Residual_Momentum": "テスト",
       "PER": "10.4倍",
@@ -22,13 +22,13 @@
       "株主優待": "TOYOTA Wallet、モータースポーツ(100株〜) 権利確定:3月"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": 11600.0,
+    "pnl_yen": 13300.0,
     "closed_at": "-",
     "name": "7203 トヨタ自動車",
     "ref_prices": {
-      "1d": 3077.0,
-      "1w": 3132.0,
-      "1m": 3126.0
+      "1d": 3243.0,
+      "1w": 3070.0,
+      "1m": 2918.5
     }
   },
   {
@@ -42,10 +42,10 @@
     "stop_loss_price": 53280.0,
     "score": 65,
     "status": "LOSS",
-    "current_price": 56230.0,
+    "current_price": 53280.0,
     "max_price": 81260.0,
     "min_price": 43980.0,
-    "return_pct": 1.32,
+    "return_pct": -4.0,
     "details": {
       "Theme": "【注目テーマTOP3】半導体",
       "PER": "44.4倍",
@@ -56,13 +56,14 @@
       "株主優待": "なし"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": 73000.0,
+    "pnl_yen": -222000.0,
     "closed_at": "08-03 15:30",
     "ref_prices": {
-      "1d": 56000.0,
-      "1w": 54290.0,
-      "1m": 52240.0
-    }
+      "1d": 54980.0,
+      "1w": 55500.0,
+      "1m": 56700.0
+    },
+    "close_price": 53280.0
   },
   {
     "id": "6920_2026-08-02",
@@ -75,10 +76,10 @@
     "stop_loss_price": 36393.6,
     "score": 65,
     "status": "WIN",
-    "current_price": 34640.0,
+    "current_price": 40184.6,
     "max_price": 58349.2,
-    "min_price": 33200.0,
-    "return_pct": -8.63,
+    "min_price": 32080.0,
+    "return_pct": 6.0,
     "details": {
       "Theme": "【注目テーマTOP3】半導体",
       "PER": "39.2倍",
@@ -89,13 +90,14 @@
       "株主優待": "なし"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": -327000.0,
+    "pnl_yen": 227460.0,
     "closed_at": "08-03 15:30",
     "ref_prices": {
-      "1d": 34610.0,
-      "1w": 35120.0,
-      "1m": 33620.0
-    }
+      "1d": 33080.0,
+      "1w": 34620.0,
+      "1m": 44100.0
+    },
+    "close_price": 40184.6
   },
   {
     "id": "6857_2026-08-02",
@@ -108,10 +110,10 @@
     "stop_loss_price": 31200.0,
     "score": 65,
     "status": "LOSS",
-    "current_price": 35270.0,
+    "current_price": 31200.0,
     "max_price": 38730.0,
     "min_price": 24135.0,
-    "return_pct": 8.52,
+    "return_pct": -4.0,
     "details": {
       "Theme": "【注目テーマTOP3】半導体",
       "PER": "62.9倍",
@@ -122,13 +124,14 @@
       "株主優待": "なし"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": 277000.0,
+    "pnl_yen": -130000.0,
     "closed_at": "08-03 15:30",
     "ref_prices": {
-      "1d": 34610.0,
-      "1w": 35900.0,
-      "1m": 27935.0
-    }
+      "1d": 33380.0,
+      "1w": 35700.0,
+      "1m": 31000.0
+    },
+    "close_price": 31200.0
   },
   {
     "id": "9984_2026-08-02",
@@ -141,10 +144,10 @@
     "stop_loss_price": 5049.6,
     "score": 65,
     "status": "WIN",
-    "current_price": 5161.0,
+    "current_price": 5575.6,
     "max_price": 9074.0,
     "min_price": 4500.0,
-    "return_pct": -1.88,
+    "return_pct": 6.0,
     "details": {
       "Theme": "【注目テーマTOP3】AI・データセンター",
       "PER": "6.0倍",
@@ -155,13 +158,14 @@
       "株主優待": "なし"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": -9900.0,
+    "pnl_yen": 31560.0,
     "closed_at": "08-05 15:30",
     "ref_prices": {
-      "1d": 5200.0,
-      "1w": 5255.0,
-      "1m": 4622.0
-    }
+      "1d": 5262.0,
+      "1w": 5163.0,
+      "1m": 5228.0
+    },
+    "close_price": 5575.6
   },
   {
     "id": "6702_2026-08-02",
@@ -174,10 +178,10 @@
     "stop_loss_price": 3512.64,
     "score": 65,
     "status": "LOSS",
-    "current_price": 3904.0,
-    "max_price": 3953.0,
+    "current_price": 3512.6,
+    "max_price": 3991.0,
     "min_price": 3016.0,
-    "return_pct": 6.7,
+    "return_pct": -4.0,
     "details": {
       "Theme": "【注目テーマTOP3】AI・データセンター",
       "PER": "21.0倍",
@@ -188,13 +192,14 @@
       "株主優待": "なし"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": 24500.0,
+    "pnl_yen": -14636.0,
     "closed_at": "08-03 15:30",
     "ref_prices": {
-      "1d": 3753.0,
-      "1w": 3646.0,
-      "1m": 3902.0
-    }
+      "1d": 3947.0,
+      "1w": 3716.0,
+      "1m": 3436.0
+    },
+    "close_price": 3512.6
   },
   {
     "id": "6701_2026-08-02",
@@ -207,10 +212,10 @@
     "stop_loss_price": 4550.4,
     "score": 65,
     "status": "WIN",
-    "current_price": 4908.0,
+    "current_price": 5024.4,
     "max_price": 5169.0,
     "min_price": 3657.0,
-    "return_pct": 3.54,
+    "return_pct": 6.0,
     "details": {
       "Theme": "【注目テーマTOP3】AI・データセンター",
       "PER": "23.4倍",
@@ -221,13 +226,14 @@
       "株主優待": "なし"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": 16800.0,
+    "pnl_yen": 28440.0,
     "closed_at": "08-14 15:30",
     "ref_prices": {
-      "1d": 4735.0,
-      "1w": 4656.0,
-      "1m": 5002.0
-    }
+      "1d": 5005.0,
+      "1w": 4671.0,
+      "1m": 4598.0
+    },
+    "close_price": 5024.4
   },
   {
     "id": "7203_2026-08-02",
@@ -240,10 +246,10 @@
     "stop_loss_price": 2944.32,
     "score": 65,
     "status": "LOSS",
-    "current_price": 3116.0,
-    "max_price": 3233.0,
+    "current_price": 2944.3,
+    "max_price": 3269.0,
     "min_price": 2686.0,
-    "return_pct": 1.6,
+    "return_pct": -4.0,
     "details": {
       "Theme": "【注目テーマTOP3】高配当・自社株買い",
       "PER": "10.4倍",
@@ -254,13 +260,14 @@
       "株主優待": "TOYOTA Wallet、モータースポーツ(100株〜) 権利確定:3月"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": 4900.0,
+    "pnl_yen": -12268.0,
     "closed_at": "08-03 15:30",
     "ref_prices": {
-      "1d": 3077.0,
-      "1w": 3132.0,
-      "1m": 3126.0
-    }
+      "1d": 3243.0,
+      "1w": 3070.0,
+      "1m": 2918.5
+    },
+    "close_price": 2944.3
   },
   {
     "id": "8306_2026-08-02",
@@ -273,10 +280,10 @@
     "stop_loss_price": 3428.16,
     "score": 65,
     "status": "LOSS",
-    "current_price": 3658.0,
+    "current_price": 3428.2,
     "max_price": 3813.0,
     "min_price": 2754.0,
-    "return_pct": 2.44,
+    "return_pct": -4.0,
     "details": {
       "Theme": "【注目テーマTOP3】高配当・自社株買い",
       "PER": "16.8倍",
@@ -287,13 +294,14 @@
       "株主優待": "なし"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": 8700.0,
+    "pnl_yen": -14284.0,
     "closed_at": "08-03 15:30",
     "ref_prices": {
-      "1d": 3608.0,
-      "1w": 3508.0,
-      "1m": 3525.0
-    }
+      "1d": 3700.0,
+      "1w": 3579.0,
+      "1m": 3470.0
+    },
+    "close_price": 3428.2
   },
   {
     "id": "9432_2026-08-02",
@@ -306,10 +314,10 @@
     "stop_loss_price": 146.303994140625,
     "score": 65,
     "status": "WIN",
-    "current_price": 168.6,
-    "max_price": 170.0,
+    "current_price": 161.5,
+    "max_price": 175.8,
     "min_price": 142.6,
-    "return_pct": 10.63,
+    "return_pct": 6.0,
     "details": {
       "Theme": "【注目テーマTOP3】高配当・自社株買い",
       "PER": "12.1倍",
@@ -320,13 +328,14 @@
       "株主優待": "dポイント付与(100株〜) 権利確定:3月"
     },
     "close_date": "2026-08-02",
-    "pnl_yen": 1620.0,
+    "pnl_yen": 914.0,
     "closed_at": "08-14 15:30",
     "ref_prices": {
-      "1d": 168.2,
-      "1w": 166.1,
-      "1m": 159.0
-    }
+      "1d": 175.6,
+      "1w": 169.6,
+      "1m": 150.4
+    },
+    "close_price": 161.5
   },
   {
     "id": "5803_20260823_143308",
@@ -340,11 +349,11 @@
     "score": 65,
     "status": "LOSS",
     "closed_at": "08-24 15:30",
-    "current_price": 5340.0,
+    "current_price": 5068.8,
     "max_price": 5558.0,
     "min_price": 4968.0,
-    "return_pct": 1.14,
-    "pnl_yen": 6000.0,
+    "return_pct": -4.0,
+    "pnl_yen": -21120.0,
     "channel": "theme_ranking",
     "details": {
       "Theme": "【市場注目ランキング】本日の活況銘柄(約定回数上位)",
@@ -356,10 +365,11 @@
       "ATR": "±446円"
     },
     "ref_prices": {
-      "1d": 5500.0,
-      "1w": 5280.0,
-      "1m": 3720.0
-    }
+      "1d": 5298.0,
+      "1w": 5305.0,
+      "1m": 4628.0
+    },
+    "close_price": 5068.8
   },
   {
     "id": "6976_20260823_143311",
@@ -373,11 +383,11 @@
     "score": 65,
     "status": "LOSS",
     "closed_at": "08-25 15:30",
-    "current_price": 9244.0,
+    "current_price": 8928.0,
     "max_price": 9733.0,
     "min_price": 8625.0,
-    "return_pct": -0.6,
-    "pnl_yen": -5600.0,
+    "return_pct": -4.0,
+    "pnl_yen": -37200.0,
     "channel": "theme_ranking",
     "details": {
       "Theme": "【市場注目ランキング】本日の活況銘柄(約定回数上位)",
@@ -389,10 +399,11 @@
       "ATR": "±893円"
     },
     "ref_prices": {
-      "1d": 8900.0,
-      "1w": 9300.0,
-      "1m": 8723.0
-    }
+      "1d": 9283.0,
+      "1w": 9060.0,
+      "1m": 10290.0
+    },
+    "close_price": 8928.0
   },
   {
     "id": "6981_20260823_143313",
@@ -406,11 +417,11 @@
     "score": 65,
     "status": "WIN",
     "closed_at": "08-27 15:30",
-    "current_price": 7397.0,
+    "current_price": 7516.5,
     "max_price": 7555.0,
-    "min_price": 6871.0,
-    "return_pct": 4.32,
-    "pnl_yen": 30600.0,
+    "min_price": 6777.0,
+    "return_pct": 6.0,
+    "pnl_yen": 42550.0,
     "channel": "theme_ranking",
     "details": {
       "Theme": "【市場注目ランキング】本日の活況銘柄(約定回数上位)",
@@ -422,10 +433,11 @@
       "ATR": "±502円"
     },
     "ref_prices": {
-      "1d": 7309.0,
-      "1w": 7091.0,
-      "1m": 6416.0
-    }
+      "1d": 7290.0,
+      "1w": 7185.0,
+      "1m": 7129.0
+    },
+    "close_price": 7516.5
   },
   {
     "id": "6027_20260823_143316",
@@ -439,11 +451,11 @@
     "score": 65,
     "status": "WIN",
     "closed_at": "08-24 15:30",
-    "current_price": 5110.0,
-    "max_price": 5500.0,
+    "current_price": 4743.5,
+    "max_price": 5780.0,
     "min_price": 4250.0,
-    "return_pct": 14.19,
-    "pnl_yen": 63500.0,
+    "return_pct": 6.0,
+    "pnl_yen": 26850.0,
     "channel": "theme_ranking",
     "details": {
       "Theme": "【市場注目ランキング】過去1ヶ月上昇率(時価総額1000億円以上)",
@@ -455,10 +467,11 @@
       "ATR": "±356円"
     },
     "ref_prices": {
-      "1d": 5140.0,
-      "1w": 4475.0,
-      "1m": 2327.0
-    }
+      "1d": 5270.0,
+      "1w": 5050.0,
+      "1m": 2290.0
+    },
+    "close_price": 4743.5
   },
   {
     "id": "2737_20260823_143318",
@@ -472,11 +485,11 @@
     "score": 65,
     "status": "WIN",
     "closed_at": "08-24 15:30",
-    "current_price": 31950.0,
-    "max_price": 34100.0,
+    "current_price": 30051.0,
+    "max_price": 35700.0,
     "min_price": 28350.0,
-    "return_pct": 12.7,
-    "pnl_yen": 360000.0,
+    "return_pct": 6.0,
+    "pnl_yen": 170100.0,
     "channel": "theme_ranking",
     "details": {
       "Theme": "【市場注目ランキング】過去1ヶ月上昇率(時価総額1000億円以上)",
@@ -488,10 +501,11 @@
       "ATR": "±2462円"
     },
     "ref_prices": {
-      "1d": 32150.0,
-      "1w": 28350.0,
-      "1m": 17150.0
-    }
+      "1d": 35000.0,
+      "1w": 33200.0,
+      "1m": 31150.0
+    },
+    "close_price": 30051.0
   },
   {
     "id": "2767_20260823_143320",
@@ -505,11 +519,11 @@
     "score": 65,
     "status": "OPEN",
     "closed_at": "-",
-    "current_price": 2605.0,
-    "max_price": 2606.0,
+    "current_price": 2506.0,
+    "max_price": 2629.0,
     "min_price": 2476.0,
-    "return_pct": 2.56,
-    "pnl_yen": 6500.0,
+    "return_pct": -1.34,
+    "pnl_yen": -3400.0,
     "channel": "theme_ranking",
     "details": {
       "Theme": "【市場注目ランキング】過去1ヶ月上昇率(時価総額1000億円以上)",
@@ -521,9 +535,9 @@
       "ATR": "±86円"
     },
     "ref_prices": {
-      "1d": 2510.0,
-      "1w": 2540.0,
-      "1m": 2414.0
+      "1d": 2562.0,
+      "1w": 2517.0,
+      "1m": 2403.0
     }
   },
   {
@@ -538,11 +552,11 @@
     "score": 65,
     "status": "LOSS",
     "closed_at": "08-24 15:30",
-    "current_price": 96.0,
+    "current_price": 91.2,
     "max_price": 103.0,
     "min_price": 88.0,
-    "return_pct": 1.05,
-    "pnl_yen": 100.0,
+    "return_pct": -4.0,
+    "pnl_yen": -380.0,
     "channel": "theme_ranking",
     "details": {
       "Theme": "【市場注目ランキング】年初来高値を更新(時価総額1000億円以上)",
@@ -554,10 +568,11 @@
       "ATR": "±4円"
     },
     "ref_prices": {
-      "1d": 100.0,
-      "1w": 95.0,
+      "1d": 97.0,
+      "1w": 96.0,
       "1m": 76.0
-    }
+    },
+    "close_price": 91.2
   },
   {
     "id": "2004_20260823_143326",
@@ -571,11 +586,11 @@
     "score": 65,
     "status": "OPEN",
     "closed_at": "-",
-    "current_price": 3755.0,
-    "max_price": 3820.0,
+    "current_price": 3825.0,
+    "max_price": 3850.0,
     "min_price": 3710.0,
-    "return_pct": 0.27,
-    "pnl_yen": 1000.0,
+    "return_pct": 2.14,
+    "pnl_yen": 8000.0,
     "channel": "theme_ranking",
     "details": {
       "Theme": "【市場注目ランキング】年初来高値を更新(時価総額1000億円以上)",
@@ -587,9 +602,9 @@
       "ATR": "±64円"
     },
     "ref_prices": {
-      "1d": 3770.0,
-      "1w": 3745.0,
-      "1m": 3630.0
+      "1d": 3835.0,
+      "1w": 3765.0,
+      "1m": 3425.0
     }
   },
   {
@@ -604,11 +619,11 @@
     "score": 65,
     "status": "OPEN",
     "closed_at": "-",
-    "current_price": 3665.0,
-    "max_price": 3755.0,
+    "current_price": 3770.0,
+    "max_price": 3810.0,
     "min_price": 3625.0,
-    "return_pct": 0.14,
-    "pnl_yen": 500.0,
+    "return_pct": 3.01,
+    "pnl_yen": 11000.0,
     "channel": "theme_ranking",
     "details": {
       "Theme": "【市場注目ランキング】年初来高値を更新(時価総額1000億円以上)",
@@ -620,9 +635,9 @@
       "ATR": "±55円"
     },
     "ref_prices": {
-      "1d": 3650.0,
-      "1w": 3660.0,
-      "1m": 3565.0
+      "1d": 3775.0,
+      "1w": 3700.0,
+      "1m": 3390.0
     }
   },
   {
@@ -637,11 +652,11 @@
     "score": 65,
     "status": "LOSS",
     "closed_at": "08-25 15:30",
-    "current_price": 5340.0,
+    "current_price": 5003.5,
     "max_price": 5558.0,
     "min_price": 4968.0,
-    "return_pct": 2.46,
-    "pnl_yen": 12800.0,
+    "return_pct": -4.0,
+    "pnl_yen": -20850.0,
     "channel": "theme_ranking",
     "details": {
       "Theme": "【市場注目ランキング】本日の活況銘柄(約定回数上位)",
@@ -653,10 +668,11 @@
       "ATR": "±370円"
     },
     "ref_prices": {
-      "1d": 5500.0,
-      "1w": 5280.0,
-      "1m": 3720.0
-    }
+      "1d": 5298.0,
+      "1w": 5305.0,
+      "1m": 4628.0
+    },
+    "close_price": 5003.5
   },
   {
     "id": "5801_20260825_105404",
@@ -670,11 +686,11 @@
     "score": 65,
     "status": "LOSS",
     "closed_at": "08-25 15:30",
-    "current_price": 3903.0,
+    "current_price": 3708.5,
     "max_price": 4120.0,
     "min_price": 3601.0,
-    "return_pct": 1.04,
-    "pnl_yen": 4000.0,
+    "return_pct": -4.0,
+    "pnl_yen": -15450.0,
     "channel": "theme_ranking",
     "details": {
       "Theme": "【市場注目ランキング】本日の活況銘柄(約定回数上位)",
@@ -686,10 +702,11 @@
       "ATR": "±304円"
     },
     "ref_prices": {
-      "1d": 4089.0,
-      "1w": 3818.0,
-      "1m": 2777.5
-    }
+      "1d": 3858.0,
+      "1w": 3905.0,
+      "1m": 3566.0
+    },
+    "close_price": 3708.5
   },
   {
     "id": "6976_20260825_105404",
@@ -703,11 +720,11 @@
     "score": 65,
     "status": "WIN",
     "closed_at": "08-27 15:30",
-    "current_price": 9244.0,
+    "current_price": 9512.4,
     "max_price": 9542.0,
     "min_price": 8625.0,
-    "return_pct": 3.01,
-    "pnl_yen": 27000.0,
+    "return_pct": 6.0,
+    "pnl_yen": 53840.0,
     "channel": "theme_ranking",
     "details": {
       "Theme": "【市場注目ランキング】本日の活況銘柄(約定回数上位)",
@@ -719,10 +736,11 @@
       "ATR": "±795円"
     },
     "ref_prices": {
-      "1d": 8900.0,
-      "1w": 9300.0,
-      "1m": 8723.0
-    }
+      "1d": 9283.0,
+      "1w": 9060.0,
+      "1m": 10290.0
+    },
+    "close_price": 9512.4
   },
   {
     "id": "2737_20260825_105405",
@@ -736,11 +754,11 @@
     "score": 65,
     "status": "LOSS",
     "closed_at": "08-25 15:30",
-    "current_price": 31950.0,
-    "max_price": 34100.0,
+    "current_price": 30480.0,
+    "max_price": 35700.0,
     "min_price": 29570.0,
-    "return_pct": 0.63,
-    "pnl_yen": 20000.0,
+    "return_pct": -4.0,
+    "pnl_yen": -127000.0,
     "channel": "theme_ranking",
     "details": {
       "Theme": "【市場注目ランキング】過去1ヶ月上昇率(時価総額1000億円以上)",
@@ -752,10 +770,11 @@
       "ATR": "±2251円"
     },
     "ref_prices": {
-      "1d": 32150.0,
-      "1w": 28350.0,
-      "1m": 17150.0
-    }
+      "1d": 35000.0,
+      "1w": 33200.0,
+      "1m": 31150.0
+    },
+    "close_price": 30480.0
   },
   {
     "id": "2767_20260825_105405",
@@ -769,11 +788,11 @@
     "score": 65,
     "status": "OPEN",
     "closed_at": "-",
-    "current_price": 2605.0,
-    "max_price": 2606.0,
+    "current_price": 2506.0,
+    "max_price": 2629.0,
     "min_price": 2485.0,
-    "return_pct": 1.6,
-    "pnl_yen": 4100.0,
+    "return_pct": -2.26,
+    "pnl_yen": -5800.0,
     "channel": "theme_ranking",
     "details": {
       "Theme": "【市場注目ランキング】過去1ヶ月上昇率(時価総額1000億円以上)",
@@ -785,9 +804,9 @@
       "ATR": "±85円"
     },
     "ref_prices": {
-      "1d": 2510.0,
-      "1w": 2540.0,
-      "1m": 2414.0
+      "1d": 2562.0,
+      "1w": 2517.0,
+      "1m": 2403.0
     }
   },
   {
@@ -802,11 +821,11 @@
     "score": 65,
     "status": "LOSS",
     "closed_at": "08-25 15:30",
-    "current_price": 2762.0,
+    "current_price": 2667.8,
     "max_price": 3065.0,
-    "min_price": 2629.8,
-    "return_pct": -0.61,
-    "pnl_yen": -1700.0,
+    "min_price": 2021.0,
+    "return_pct": -4.0,
+    "pnl_yen": -11120.0,
     "channel": "theme_ranking",
     "details": {
       "Theme": "【市場注目ランキング】過去1ヶ月上昇率(時価総額1000億円以上)",
@@ -818,10 +837,11 @@
       "ATR": "±166円"
     },
     "ref_prices": {
-      "1d": 3029.0,
-      "1w": 2445.2,
-      "1m": 1753.5
-    }
+      "1d": 2276.0,
+      "1w": 2894.3,
+      "1m": 1956.1
+    },
+    "close_price": 2667.8
   },
   {
     "id": "1939_20260825_105410",
@@ -833,13 +853,13 @@
     "target_price": 2274.8,
     "stop_loss_price": 2060.2,
     "score": 65,
-    "status": "OPEN",
-    "closed_at": "-",
-    "current_price": 2179.0,
-    "max_price": 2205.0,
+    "status": "WIN",
+    "closed_at": "09-01 15:30",
+    "current_price": 2274.8,
+    "max_price": 2304.0,
     "min_price": 2133.0,
-    "return_pct": 1.54,
-    "pnl_yen": 3300.0,
+    "return_pct": 6.0,
+    "pnl_yen": 12880.0,
     "channel": "theme_ranking",
     "details": {
       "Theme": "【市場注目ランキング】年初来高値を更新(時価総額1000億円以上)",
@@ -851,10 +871,11 @@
       "ATR": "±41円"
     },
     "ref_prices": {
-      "1d": 2183.0,
-      "1w": 2120.0,
-      "1m": 1988.0
-    }
+      "1d": 2294.0,
+      "1w": 2177.0,
+      "1m": 2074.0
+    },
+    "close_price": 2274.8
   },
   {
     "id": "2004_20260825_105410",
@@ -868,11 +889,11 @@
     "score": 65,
     "status": "OPEN",
     "closed_at": "-",
-    "current_price": 3755.0,
-    "max_price": 3820.0,
+    "current_price": 3825.0,
+    "max_price": 3850.0,
     "min_price": 3710.0,
-    "return_pct": -0.66,
-    "pnl_yen": -2500.0,
+    "return_pct": 1.19,
+    "pnl_yen": 4500.0,
     "channel": "theme_ranking",
     "details": {
       "Theme": "【市場注目ランキング】年初来高値を更新(時価総額1000億円以上)",
@@ -884,9 +905,9 @@
       "ATR": "±59円"
     },
     "ref_prices": {
-      "1d": 3770.0,
-      "1w": 3745.0,
-      "1m": 3630.0
+      "1d": 3835.0,
+      "1w": 3765.0,
+      "1m": 3425.0
     }
   },
   {
@@ -901,11 +922,11 @@
     "score": 65,
     "status": "OPEN",
     "closed_at": "-",
-    "current_price": 3665.0,
-    "max_price": 3755.0,
+    "current_price": 3770.0,
+    "max_price": 3810.0,
     "min_price": 3625.0,
-    "return_pct": -1.74,
-    "pnl_yen": -6500.0,
+    "return_pct": 1.07,
+    "pnl_yen": 4000.0,
     "channel": "theme_ranking",
     "details": {
       "Theme": "【市場注目ランキング】年初来高値を更新(時価総額1000億円以上)",
@@ -917,9 +938,9 @@
       "ATR": "±54円"
     },
     "ref_prices": {
-      "1d": 3650.0,
-      "1w": 3660.0,
-      "1m": 3565.0
+      "1d": 3775.0,
+      "1w": 3700.0,
+      "1m": 3390.0
     }
   },
   {
@@ -934,11 +955,11 @@
     "score": 75,
     "status": "OPEN",
     "closed_at": "-",
-    "current_price": 56230.0,
-    "max_price": 56230.0,
-    "min_price": 56230.0,
-    "return_pct": 0.0,
-    "pnl_yen": 0.0,
+    "current_price": 53110.0,
+    "max_price": 56440.0,
+    "min_price": 52500.0,
+    "return_pct": -5.55,
+    "pnl_yen": -312000.0,
     "channel": "quant_scan",
     "details": {
       "Residual_Momentum": "固有モメンタム上昇傾向 (z-score: 1.20) [+20点]",
@@ -947,7 +968,16 @@
       "Global_Macro": "米国SOX指数急騰 (+2.3%) [+15点]",
       "Social_Sentiment": "X話題度スコア (50) [+5点]",
       "配当利回り": "138.00%",
-      "株主優待": "なし"
+      "株主優待": "なし",
+      "PER": "42.4倍",
+      "PBR": "11.27倍",
+      "EPS": "1253.4円",
+      "ATR": "±2357円"
+    },
+    "ref_prices": {
+      "1d": 54980.0,
+      "1w": 55500.0,
+      "1m": 56700.0
     }
   }
 ]
