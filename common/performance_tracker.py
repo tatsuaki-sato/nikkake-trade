@@ -816,6 +816,26 @@ def generate_html_dashboard(history: list, real_portfolio: list):
         </div>
     </div>
 
+    <!-- 株価チャートモーダル(一覧の行タップで開く) -->
+    <div class="modal fade" id="chartModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title mb-0" id="chartTitle">株価チャート</h5>
+                        <small class="text-muted" id="chartSubtitle"></small>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="chartLoading" class="text-center text-muted py-5">読み込み中...</div>
+                    <canvas id="priceChart" style="width:100%;height:340px;display:none"></canvas>
+                    <div class="d-flex gap-3 flex-wrap mt-3 small" id="chartLegend" style="display:none"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- AI推奨候補登録モーダル -->
     <div class="modal fade" id="addSignalModal" tabindex="-1" aria-labelledby="addSignalModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -983,9 +1003,31 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     const code = item.ticker_code || item.ticker;
                     const name = item.name || code;
                     const price = item.entry_price || 0;
-                    dropdown.innerHTML += `<option value="${{code}}" data-name="${{name}}" data-price="${{price}}">${{code}}: ${{name}} (開始時株価: ${{price.toLocaleString()}}円)</option>`;
+                    const date = item.date || '';
+                    const dateLabel = date ? ` / 開始 ${{date}}` : '';
+                    dropdown.innerHTML += `<option value="${{code}}" data-name="${{name}}" data-price="${{price}}" data-date="${{date}}">${{code}}: ${{name}} (開始時株価: ${{price.toLocaleString()}}円${{dateLabel}})</option>`;
                 }});
             }}
+        }}
+
+        // シグナルの開始日時("MM-DD HH:MM" 形式、年なし)を datetime-local 入力用の
+        // "YYYY-MM-DDTHH:MM" に変換する。年は現在年、未来日になる場合は前年とみなす。
+        function signalDateToLocalInput(dateStr) {{
+            if (!dateStr) return '';
+            if (/^\d{{4}}-\d{{2}}-\d{{2}}/.test(dateStr)) {{
+                return dateStr.replace(' ', 'T').slice(0, 16);
+            }}
+            const m = dateStr.match(/(\d{{1,2}})-(\d{{1,2}})(?:\s+(\d{{1,2}}):(\d{{2}}))?/);
+            if (!m) return '';
+            const now = new Date();
+            let year = now.getFullYear();
+            const mo = m[1].padStart(2, '0');
+            const d = m[2].padStart(2, '0');
+            const hh = (m[3] || '15').padStart(2, '0');
+            const mm = m[4] || '30';
+            const candidate = new Date(`${{year}}-${{mo}}-${{d}}T${{hh}}:${{mm}}`);
+            if (candidate.getTime() - now.getTime() > 86400000) year -= 1;
+            return `${{year}}-${{mo}}-${{d}}T${{hh}}:${{mm}}`;
         }}
 
         function onSelectRecommendedStock(elem) {{
@@ -995,10 +1037,14 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             const code = selectedOpt.value;
             const name = selectedOpt.getAttribute('data-name');
             const price = selectedOpt.getAttribute('data-price');
+            const date = selectedOpt.getAttribute('data-date');
 
+            // ここで入れるのは選択時のデフォルト値。あとから手で変更できる。
             document.getElementById('inputTicker').value = code;
             document.getElementById('inputName').value = name;
             document.getElementById('inputBuyPrice').value = price;
+            const localDate = signalDateToLocalInput(date);
+            if (localDate) document.getElementById('inputBuyDate').value = localDate;
         }}
 
         const PNL_BASIS_SHORT = {{
@@ -1089,6 +1135,106 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             alert(`${{data.updated.length}}件の開始日時を ${{data.date}} に更新しました。開始時株価もその日の終値に揃えています。`);
         }}
 
+        // ── 株価チャート(行タップで表示) ───────────────────────────────
+        // 外部ライブラリを足さずcanvasに直接描く。終値の折れ線に、選択中の起点で
+        // 使っている「起点株価・利確・損切り」の水平線を重ねるので、値動きが
+        // どのラインにどう近づいたかがそのまま読める。
+        async function openChart(itemId) {{
+            const history = await fetchHistoryAPI();
+            const item = history.find(x => String(x.id) === String(itemId));
+            if (!item) return;
+            const code = item.ticker_code || String(item.ticker || '').replace('.T', '');
+            const basis = getPnlBasis();
+            const br = (item.basis_results || {{}})[basis];
+            const baseP = br ? parseFloat(br.base) : parseFloat(item.entry_price || 0);
+            const targetP = br ? parseFloat(br.target) : parseFloat(item.target_price || 0);
+            const stopP = br ? parseFloat(br.stop) : parseFloat(item.stop_loss_price || 0);
+            const st = br ? br.status : item.status;
+
+            document.getElementById('chartTitle').innerText = item.name || code;
+            document.getElementById('chartSubtitle').innerText =
+                `起点: ${{PNL_BASIS_SHORT[basis] || '開始日'}} ${{baseP.toLocaleString()}}円 / 状態: ${{st}}`;
+            document.getElementById('chartLoading').style.display = '';
+            document.getElementById('priceChart').style.display = 'none';
+            new bootstrap.Modal(document.getElementById('chartModal')).show();
+
+            let data = {{dates: [], closes: []}};
+            try {{
+                const res = await fetch(`/api/chart/${{code}}`);
+                if (res.ok) data = await res.json();
+            }} catch (e) {{}}
+
+            document.getElementById('chartLoading').style.display = 'none';
+            if (!data.closes || data.closes.length === 0) {{
+                document.getElementById('chartLoading').style.display = '';
+                document.getElementById('chartLoading').innerText = '株価データを取得できませんでした。';
+                return;
+            }}
+            const cv = document.getElementById('priceChart');
+            cv.style.display = '';
+            drawPriceChart(cv, data, {{base: baseP, target: targetP, stop: stopP}});
+
+            const lg = document.getElementById('chartLegend');
+            lg.style.display = 'flex';
+            lg.innerHTML = [
+                ['#0d6efd', '終値'],
+                ['#6c757d', `起点 ${{baseP.toLocaleString()}}円`],
+                ['#198754', `利確 ${{targetP.toLocaleString()}}円`],
+                ['#dc3545', `損切 ${{stopP.toLocaleString()}}円`]
+            ].map(([c, t]) => `<span><span style="display:inline-block;width:14px;height:3px;background:${{c}};vertical-align:middle"></span> ${{t}}</span>`).join('');
+        }}
+
+        function drawPriceChart(cv, data, lines) {{
+            const dpr = window.devicePixelRatio || 1;
+            const w = cv.clientWidth, h = 340;
+            cv.width = w * dpr; cv.height = h * dpr;
+            const ctx = cv.getContext('2d');
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, w, h);
+
+            const padL = 62, padR = 12, padT = 12, padB = 26;
+            const cw = w - padL - padR, ch = h - padT - padB;
+            const vals = data.closes.concat([lines.base, lines.target, lines.stop].filter(v => v > 0));
+            let lo = Math.min(...vals), hi = Math.max(...vals);
+            const margin = (hi - lo) * 0.08 || 1;
+            lo -= margin; hi += margin;
+            const x = i => padL + (cw * i) / Math.max(data.closes.length - 1, 1);
+            const y = v => padT + ch - (ch * (v - lo)) / (hi - lo);
+
+            // 目盛りと横罫線
+            ctx.strokeStyle = '#e9ecef'; ctx.fillStyle = '#868e96';
+            ctx.font = '11px sans-serif'; ctx.textAlign = 'right'; ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {{
+                const v = lo + ((hi - lo) * i) / 4, yy = y(v);
+                ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(w - padR, yy); ctx.stroke();
+                ctx.fillText(Math.round(v).toLocaleString(), padL - 6, yy + 4);
+            }}
+
+            // 起点・利確・損切りの水平線
+            [[lines.stop, '#dc3545'], [lines.target, '#198754'], [lines.base, '#6c757d']].forEach(([v, color]) => {{
+                if (!v || v <= 0) return;
+                ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+                ctx.beginPath(); ctx.moveTo(padL, y(v)); ctx.lineTo(w - padR, y(v)); ctx.stroke();
+                ctx.setLineDash([]);
+            }});
+
+            // 終値の折れ線
+            ctx.strokeStyle = '#0d6efd'; ctx.lineWidth = 2; ctx.beginPath();
+            data.closes.forEach((v, i) => i === 0 ? ctx.moveTo(x(i), y(v)) : ctx.lineTo(x(i), y(v)));
+            ctx.stroke();
+
+            // 直近値を強調
+            const li = data.closes.length - 1;
+            ctx.fillStyle = '#0d6efd';
+            ctx.beginPath(); ctx.arc(x(li), y(data.closes[li]), 3.5, 0, Math.PI * 2); ctx.fill();
+
+            // 期間の両端の日付
+            ctx.fillStyle = '#868e96'; ctx.textAlign = 'left';
+            ctx.fillText(data.dates[0] || '', padL, h - 8);
+            ctx.textAlign = 'right';
+            ctx.fillText(data.dates[li] || '', w - padR, h - 8);
+        }}
+
         async function renderAIHistory() {{
             const history = await fetchHistoryAPI();
             const tbody = document.getElementById('aiTableBody');
@@ -1164,8 +1310,9 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 // 選択できること自体が必要。
                 const cbCell = `<td><input type="checkbox" class="form-check-input ai-row-check" value="${{item.id || ''}}" onchange="updateSelectedCount()"></td>`;
 
+                const rowId = String(item.id || originalIndex);
                 tbody.innerHTML += `
-                    <tr>
+                    <tr class="chart-row" style="cursor:pointer" onclick="if(!event.target.closest('input,button')) openChart('${{rowId}}')" title="タップで株価チャートを表示">
                         ${{cbCell}}
                         <td>${{sectorTag}}<strong>${{item.name || item.ticker_code || item.ticker}}</strong></td>
                         <td><span class="badge bg-secondary fs-6">${{item.score || 75}}点</span></td>
@@ -1395,7 +1542,37 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             restorePnlBasis();
             renderAIHistory();
             renderRealPortfolio();
+            initTabRouting();
         }});
+
+        // 候補画面(/candidates)とポートフォリオ画面(/portfolio)がそれぞれ固有URLを持つ
+        const TAB_ROUTES = {{
+            '/candidates': 'ai-tab',
+            '/portfolio': 'real-tab',
+        }};
+        const TAB_PATHS = {{ 'ai-tab': '/candidates', 'real-tab': '/portfolio' }};
+        const TAB_TITLES = {{
+            'ai-tab': 'nikkake-trade - AI推奨シグナル候補',
+            'real-tab': 'nikkake-trade - リアル購入ポートフォリオ',
+        }};
+
+        function initTabRouting() {{
+            const path = window.location.pathname.replace(/\\/+$/, '') || '/candidates';
+            const tabId = TAB_ROUTES[path] || 'ai-tab';
+            if (TAB_TITLES[tabId]) document.title = TAB_TITLES[tabId];
+            if (tabId !== 'ai-tab') {{
+                bootstrap.Tab.getOrCreateInstance(document.getElementById(tabId)).show();
+            }}
+            document.querySelectorAll('#myTab button[data-bs-toggle="tab"]').forEach(btn => {{
+                btn.addEventListener('shown.bs.tab', e => {{
+                    const p = TAB_PATHS[e.target.id];
+                    if (p && window.location.pathname !== p) {{
+                        window.history.replaceState(null, '', p);
+                    }}
+                    if (TAB_TITLES[e.target.id]) document.title = TAB_TITLES[e.target.id];
+                }});
+            }});
+        }}
     </script>
 </body>
 </html>

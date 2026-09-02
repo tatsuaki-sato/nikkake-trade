@@ -4,7 +4,7 @@ import uvicorn
 import threading
 from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException, BackgroundTasks
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional
@@ -100,16 +100,65 @@ def delete_api_watchlist(ticker: str):
     items = remove_ticker(ticker)
     return {"status": "ok", "watchlist": items}
 
-@app.get("/", response_class=HTMLResponse)
-def get_dashboard(background_tasks: BackgroundTasks):
+def _serve_index(background_tasks: BackgroundTasks):
     """
     画面を0.01秒で即時返却（10分間キャッシュ有効、アクセス回数削減）
+    どのタブを開くかは URL パス (/candidates, /portfolio) を見てフロント側で決める。
     """
     background_tasks.add_task(update_signal_performance, False)
     if os.path.exists(INDEX_FILE):
         with open(INDEX_FILE, "r", encoding="utf-8") as f:
             return f.read()
     return "<h1>nikkake-trade Dashboard File Not Found</h1>"
+
+@app.get("/")
+def get_dashboard_root():
+    """候補画面へリダイレクト（それぞれの画面が固有URLを持つ）"""
+    return RedirectResponse(url="/candidates")
+
+@app.get("/candidates", response_class=HTMLResponse)
+def get_candidates(background_tasks: BackgroundTasks):
+    """AI推奨シグナル候補画面"""
+    return _serve_index(background_tasks)
+
+@app.get("/portfolio", response_class=HTMLResponse)
+def get_portfolio_page(background_tasks: BackgroundTasks):
+    """My リアル購入ポートフォリオ画面"""
+    return _serve_index(background_tasks)
+
+@app.get("/api/chart/{code}")
+def get_chart_data(code: str, period: str = "6mo"):
+    """一覧の行をタップしたときに出す株価チャート用の時系列。
+
+    yfinanceを都度叩くと行を開くたびに待たされるので、銘柄ごとに30分キャッシュする。
+    """
+    from common.cache_manager import get_cached_item, set_cached_item
+    code = code.replace(".T", "").strip()
+    cache_key = f"chart_{code}_{period}"
+    cached = get_cached_item(cache_key, ttl_seconds=1800)
+    if cached:
+        return cached
+
+    try:
+        import yfinance as yf
+        df = yf.download(f"{code}.T", period=period, interval="1d", progress=False, auto_adjust=True)
+        if df is None or df.empty:
+            return {"code": code, "dates": [], "closes": []}
+        if getattr(df.columns, "nlevels", 1) > 1:
+            df.columns = df.columns.get_level_values(0)
+        df = df.dropna(subset=["Close"])
+        data = {
+            "code": code,
+            "dates": [d.strftime("%Y-%m-%d") for d in df.index],
+            "closes": [round(float(v), 1) for v in df["Close"]],
+            "highs": [round(float(v), 1) for v in df["High"]],
+            "lows": [round(float(v), 1) for v in df["Low"]],
+        }
+        set_cached_item(cache_key, data)
+        return data
+    except Exception as e:
+        print(f"チャートデータ取得エラー ({code}): {e}")
+        return {"code": code, "dates": [], "closes": []}
 
 @app.get("/api/history")
 def get_api_history():
