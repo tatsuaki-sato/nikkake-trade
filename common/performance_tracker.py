@@ -711,7 +711,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                                     <th style="width:34px"><input type="checkbox" class="form-check-input" id="aiSelectAll" onchange="toggleSelectAll(this)"></th>
                                     <th>企業名 (コード)</th>
                                     <th>スコア</th>
-                                    <th>開始時株価 (100株購入額)</th>
+                                    <th>開始時株価 (100株購入額)<br><small class="text-muted fw-normal" id="basePriceLabel">開始日</small></th>
                                     <th>最新/最終株価</th>
                                     <th>目標利確 / 損切り</th>
                                     <th>100株損益額 (%)<br><small class="text-muted fw-normal" id="pnlBasisLabel">開始日 → 最新</small></th>
@@ -967,6 +967,10 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             document.getElementById('inputBuyPrice').value = price;
         }}
 
+        const PNL_BASIS_SHORT = {{
+            entry: '開始日', '1d': '前営業日', '1w': '1週間前', '1m': '1ヶ月前'
+        }};
+
         const PNL_BASIS_LABELS = {{
             entry: '開始日 → 最新',
             '1d': '前営業日 → 最新',
@@ -993,6 +997,8 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             try {{ localStorage.setItem('pnlBasis', basis); }} catch (e) {{}}
             const label = document.getElementById('pnlBasisLabel');
             if (label) label.innerText = PNL_BASIS_LABELS[basis] || PNL_BASIS_LABELS.entry;
+            const baseLabel = document.getElementById('basePriceLabel');
+            if (baseLabel) baseLabel.innerText = PNL_BASIS_SHORT[basis] || PNL_BASIS_SHORT.entry;
             renderAIHistory();
         }}
 
@@ -1003,6 +1009,8 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             if (sel && PNL_BASIS_LABELS[saved]) sel.value = saved;
             const label = document.getElementById('pnlBasisLabel');
             if (label) label.innerText = PNL_BASIS_LABELS[saved] || PNL_BASIS_LABELS.entry;
+            const baseLabel = document.getElementById('basePriceLabel');
+            if (baseLabel) baseLabel.innerText = PNL_BASIS_SHORT[saved] || PNL_BASIS_SHORT.entry;
         }}
 
         // 業種(J-Quantsの17業種区分)を企業名の上に小さく出す。テーマ経由で
@@ -1078,9 +1086,10 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 const targetP = parseFloat(item.target_price || 0);
                 const stopP = parseFloat(item.stop_loss_price || 0);
                 const currP = parseFloat(item.current_price || entryP);
-                const simAmt = entryP * 100;
-
+                // 損益の起点を切り替えたら、株価・購入額・差額もその起点に揃える。
+                // 決着済みは結果が確定しているので常に開始時株価のまま。
                 const baseP = isOpen ? basePriceFor(item, getPnlBasis(), entryP) : entryP;
+                const simAmt = baseP * 100;
                 const pnlYen = (currP - baseP) * 100;
                 const retP = baseP > 0 ? ((currP - baseP) / baseP * 100) : 0;
 
@@ -1101,7 +1110,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 const retSign = pnlYen >= 0 ? '+' : '';
                 const metricsHTML = formatMetricsHTML(item.details);
 
-                const diffFromEntry = currP - entryP;
+                const diffFromEntry = currP - baseP;
                 const diffCls = diffFromEntry >= 0 ? 'text-success' : 'text-danger';
                 const diffTxt = `<small class="${{diffCls}}">(${{diffFromEntry >= 0 ? '+' : ''}}${{Math.round(diffFromEntry).toLocaleString()}}円)</small>`;
                 const priceCol = isFetchingBackground ? '<span class="updating-badge">🔄 取得中</span>' : `${{currP.toLocaleString()}}円<br>${{diffTxt}}`;
@@ -1120,7 +1129,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                         ${{cbCell}}
                         <td>${{sectorTag}}<strong>${{item.name || item.ticker_code || item.ticker}}</strong></td>
                         <td><span class="badge bg-secondary fs-6">${{item.score || 75}}点</span></td>
-                        <td><strong>${{entryP.toLocaleString()}}円</strong><br><small class="text-muted">(${{(simAmt / 10000).toFixed(1)}}万円)</small></td>
+                        <td><strong>${{baseP.toLocaleString()}}円</strong><br><small class="text-muted">(${{(simAmt / 10000).toFixed(1)}}万円)</small></td>
                         <td>${{priceCol}}</td>
                         <td><small class="text-success">🎯 ${{targetP.toLocaleString()}}円</small><br><small class="text-danger">🛑 ${{stopP.toLocaleString()}}円</small></td>
                         <td class="${{retCls}}">${{pnlCol}}</td>
