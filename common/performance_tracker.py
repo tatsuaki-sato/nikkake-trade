@@ -108,13 +108,12 @@ def record_signal(ticker: str, entry_price: float, target_price: float, stop_los
     now_str = datetime.now().strftime("%m-%d %H:%M")
     code = ticker.replace('.T', '').strip()
 
-    # 同じ銘柄が既に監視中(OPEN)なら二重登録しない。
-    # 以前は「同じ銘柄 かつ 同じ日付」でしか弾いていなかったため、スキャナーが
-    # 毎日走るたびに同一銘柄が積み上がっていた(東京エレクトロンが8件など)。
-    # 利確/損切りで決着済み(WIN/LOSS)なら、新しいシグナルとして再登録してよい。
+    # 一覧は1銘柄1行にする。既に載っている銘柄は、決着済み(WIN/LOSS)であっても
+    # 再登録しない。決着した行はその時点の結果を表示し続け、もう一度追跡したい
+    # ときはダッシュボードの「開始日時の一括更新」で開始し直す運用にしている。
     for item in history:
         item_code = item.get("ticker_code") or item.get("ticker", "")
-        if str(item_code).replace('.T', '').strip() == code and item.get("status") == "OPEN":
+        if str(item_code).replace('.T', '').strip() == code:
             return
 
 
