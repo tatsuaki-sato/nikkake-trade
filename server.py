@@ -268,6 +268,28 @@ def bulk_update_start_date(payload: BulkStartDateInput, background_tasks: Backgr
     background_tasks.add_task(update_signal_performance, True)
     return {"status": "success", "updated": updated, "date": display}
 
+class BulkDeleteInput(BaseModel):
+    ids: Optional[list] = None
+    all: bool = False
+
+@app.post("/api/history/bulk-delete")
+def bulk_delete_history(payload: BulkDeleteInput):
+    """選択した候補、または全候補をまとめて削除する。"""
+    history = load_history()
+    before = len(history)
+    if payload.all:
+        new_history = []
+    else:
+        targets = {str(i) for i in (payload.ids or [])}
+        new_history = [
+            item for idx, item in enumerate(history)
+            if str(item.get("id")) not in targets and str(idx) not in targets
+        ]
+    save_history(new_history)
+    real_portfolio = load_real_portfolio()
+    generate_html_dashboard(new_history, real_portfolio)
+    return {"status": "success", "deleted": before - len(new_history), "remaining": len(new_history)}
+
 @app.delete("/api/history/{signal_id}")
 def delete_api_history(signal_id: str):
     """

@@ -856,6 +856,9 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                         <small class="text-muted">選択した銘柄の開始日時を一括更新:</small>
                         <input type="datetime-local" class="form-control form-control-sm" style="width:auto" id="bulkStartDate">
                         <button class="btn btn-sm btn-outline-primary" onclick="bulkUpdateStartDate()">選択銘柄をこの日時で開始し直す</button>
+                        <span class="vr d-none d-md-block"></span>
+                        <button class="btn btn-sm btn-outline-danger" onclick="bulkDeleteSignals(false)">🗑 選択した候補を削除</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="bulkDeleteSignals(true)">🗑 候補を全件削除</button>
                         <small class="text-muted" id="bulkSelectedCount">0件選択中</small>
                     </div>
                     <div class="mb-2"><small class="text-muted">選んだ起点の株価と最新株価を比較した損益額(%)を表示します。一括更新すると、その日の終値を開始時株価として取り直します。</small></div>
@@ -1283,6 +1286,27 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             await renderAIHistory();
             updateSelectedCount();
             alert(`${{data.updated.length}}件の開始日時を ${{data.date}} に更新しました。開始時株価もその日の終値に揃えています。`);
+        }}
+
+        async function bulkDeleteSignals(all) {{
+            const ids = selectedSignalIds();
+            if (!all && ids.length === 0) {{ alert('削除する候補を選択してください。'); return; }}
+            const msg = all
+                ? '候補リストを全件削除します。よろしいですか？(この操作は元に戻せません)'
+                : `選択した ${{ids.length}} 件の候補を削除します。よろしいですか？`;
+            if (!confirm(msg)) return;
+            const res = await fetch('/api/history/bulk-delete', {{
+                method: 'POST',
+                headers: {{'Content-Type': 'application/json'}},
+                body: JSON.stringify(all ? {{all: true}} : {{ids: ids}})
+            }});
+            if (!res.ok) {{ alert('削除に失敗しました。'); return; }}
+            const data = await res.json();
+            const sa = document.getElementById('aiSelectAll');
+            if (sa) sa.checked = false;
+            await renderAIHistory();
+            updateSelectedCount();
+            alert(`${{data.deleted}}件の候補を削除しました。`);
         }}
 
         // ── 株価チャート(行タップで表示) ───────────────────────────────
