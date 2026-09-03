@@ -295,6 +295,26 @@ def get_api_portfolio():
     """
     return load_real_portfolio()
 
+@app.get("/api/close-price")
+def get_close_price(code: str, date: str):
+    """指定日(以前で直近の営業日)の終値を返す。購入銘柄追加モーダルで、
+    購入日時を選んだときにその日の実際の株価を買付単価へ入れるのに使う。
+    date は "YYYY-MM-DDTHH:MM" / "YYYY-MM-DD HH:MM" / "YYYY-MM-DD" のいずれか。"""
+    raw = date.strip().replace("T", " ")
+    target_dt = None
+    for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+        try:
+            target_dt = datetime.strptime(raw, fmt)
+            break
+        except ValueError:
+            continue
+    if target_dt is None:
+        raise HTTPException(status_code=400, detail="日付の形式が不正です")
+    price = fetch_close_on(code.replace(".T", "").strip(), target_dt)
+    if price is None:
+        return JSONResponse({"code": code, "date": date, "close": None})
+    return {"code": code, "date": date, "close": price}
+
 @app.post("/api/portfolio")
 def add_api_portfolio(stock: RealStockInput, background_tasks: BackgroundTasks):
     """

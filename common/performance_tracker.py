@@ -176,6 +176,64 @@ def _get_cached_yutai_info(ticker: str) -> str:
     set_cached_item(cache_key, data)
     return data.get('yutai_info', 'なし')
 
+def _get_cached_perks(ticker: str, close_price: float = 0.0) -> dict:
+    """PER/PBR/配当/優待の一式を取得(7日キャッシュ)。
+
+    daily_scanner.get_cached_financial_perks() と同じキャッシュキー(perks_{ticker})
+    なので、AI推奨シグナル側で既に取得済みなら再スクレイピングしない。
+    """
+    from common.cache_manager import get_cached_item, set_cached_item
+    cache_key = f"perks_{ticker}"
+    cached = get_cached_item(cache_key, ttl_seconds=604800)
+    if cached:
+        return cached
+    from modules.post_analysis.advanced_scraper import get_stock_financial_perks
+    data = get_stock_financial_perks(ticker, close_price)
+    set_cached_item(cache_key, data)
+    return data
+
+def _enrich_details(item: dict, code: str, df: pd.DataFrame):
+    """銘柄の指標(PER/PBR/EPS/配当/優待/ATR)を details に埋める。
+
+    AI推奨シグナルとリアルポートフォリオで共通。yfinanceの .info は日本株だと
+    空を返すことが多いので、PER/PBR/配当は株探由来の perks(get_stock_financial_perks)
+    でも補う。既に入っている値は上書きしない(スキャン時に取れた値を優先し、
+    .info が一時的に落ちても消えないようにする)。
+    """
+    symbol = code + ".T" if not str(code).endswith(".T") else code
+    if not item.get("details"):
+        item["details"] = {}
+    details = item["details"]
+
+    def _fill(key, value):
+        if not value:
+            return
+        sval = str(value)
+        if sval in ("データなし", "要確認", "なし", "-"):
+            return
+        if key not in details or "ダミー" in str(details.get(key, "")) or \
+           str(details.get(key, "")) in ("データなし", "要確認", "-"):
+            details[key] = value
+
+    for k, v in fetch_real_stock_metrics(code, df).items():
+        _fill(k, v)
+
+    need_perks = any(details.get(k) in (None, "データなし", "要確認", "-")
+                     for k in ("PER", "PBR", "配当利回り")) or \
+                 details.get("株主優待") in (None, "なし")
+    if need_perks:
+        try:
+            close_price = float(df["Close"].iloc[-1]) if df is not None and not df.empty else 0.0
+            perks = _get_cached_perks(symbol, close_price)
+            _fill("PER", perks.get("per"))
+            _fill("PBR", perks.get("pbr"))
+            _fill("配当利回り", perks.get("dividend_yield"))
+            yutai = perks.get("yutai_info")
+            if yutai and yutai != "なし" and details.get("株主優待") in (None, "なし"):
+                details["株主優待"] = yutai
+        except Exception as e:
+            print(f"perks enrich note ({code}): {e}")
+
 def fetch_real_stock_metrics(code: str, df: pd.DataFrame) -> dict:
     symbol = code + ".T" if not code.endswith(".T") else code
     metrics = {}
@@ -431,14 +489,7 @@ def update_signal_performance(force_refresh: bool = False):
                     item["status"] = "OPEN"
                     item["closed_at"] = "-"
 
-                real_m = fetch_real_stock_metrics(code, df)
-                if not item.get("details"):
-                    item["details"] = {}
-                for k, v in real_m.items():
-                    if k not in item["details"] or "ダミー" in str(item["details"][k]):
-                        item["details"][k] = v
-                if "株主優待" not in item["details"] or item["details"]["株主優待"] == "なし":
-                    item["details"]["株主優待"] = _get_cached_yutai_info(symbol)
+                _enrich_details(item, code, df)
             else:
                 item["status"] = "OPEN"
                 item["closed_at"] = "-"
@@ -455,7 +506,15 @@ def update_signal_performance(force_refresh: bool = False):
     for item in real_portfolio:
         code = item.get("ticker", "")
         symbol = code + ".T"
-        
+
+        # AI推奨シグナル側と同じ扱い: 企業名がコードのまま/空の銘柄を、
+        # 株価取得の成否にかかわらず今の名前解決ロジックで埋め直す。
+        # ユーザーが手で付けた名前はそのまま残す。
+        if code and not str(item.get("name") or "").strip().replace(code, "").strip():
+            resolved = get_company_name(code)
+            if resolved != code:
+                item["name"] = resolved
+
         rec_date_str = item.get("buy_date", "08-02").split()[0]
         closed_at_str = item.get("closed_at", "-")
         if closed_at_str != "-" and " " in closed_at_str:
@@ -484,7 +543,6 @@ def update_signal_performance(force_refresh: bool = False):
                     df.index = df.index.tz_localize(None)
 
                 latest_close = float(df["Close"].iloc[-1])
-                item["name"] = get_company_name(code)
                 item["current_price"] = round(latest_close, 1)
                 item["eval_amount"] = latest_close * shares
                 
@@ -538,14 +596,7 @@ def update_signal_performance(force_refresh: bool = False):
                     item["status"] = "HOLD 保有中"
                     item["closed_at"] = "-"
 
-                real_m = fetch_real_stock_metrics(code, df)
-                if not item.get("details"):
-                    item["details"] = {}
-                for k, v in real_m.items():
-                    if k not in item["details"] or "ダミー" in str(item["details"][k]):
-                        item["details"][k] = v
-                if "株主優待" not in item["details"] or item["details"]["株主優待"] == "なし":
-                    item["details"]["株主優待"] = _get_cached_yutai_info(symbol)
+                _enrich_details(item, code, df)
             else:
                 item["status"] = "HOLD 保有中"
                 item["closed_at"] = "-"
@@ -661,33 +712,92 @@ def generate_html_dashboard(history: list, real_portfolio: list):
         .nav-tabs .nav-link.active {{ font-weight: bold; border-bottom: 3px solid #0d6efd; }}
         .table-responsive {{ font-size: 0.92rem; }}
         .updating-badge {{ font-size: 0.8rem; background-color: #e2e3e5; color: #383d41; border-radius: 4px; padding: 2px 6px; display: inline-block; }}
+
+        /* ── スマホ表示 ────────────────────────────────────────────────
+           10列前後のワイドな表は横スクロールでは実質読めないので、
+           狭い画面では1行 = 1カード(項目名: 値 の縦積み)に組み替える。
+           各セルの見出しは JS 側で td に付けた data-label を使う。 */
+        @media (max-width: 768px) {{
+            body {{ padding: 10px; }}
+            .container-fluid.px-4 {{ padding-left: 10px !important; padding-right: 10px !important; }}
+            h2 {{ font-size: 1.25rem; }}
+            h4 {{ font-size: 1.1rem; }}
+            .display-5 {{ font-size: 1.6rem; }}
+            .dashboard-header {{ flex-direction: column; align-items: flex-start !important; gap: 8px; }}
+            .dashboard-header .dashboard-actions {{ font-size: .85rem; }}
+            .nav-tabs {{ font-size: .95rem !important; }}
+            .nav-tabs .nav-link {{ padding: .5rem .4rem; }}
+            .panel-header {{ flex-direction: column; align-items: stretch !important; gap: 8px; }}
+            .panel-header .btn {{ width: 100%; }}
+            .btn-lg {{ font-size: 1rem; padding: .5rem .9rem; }}
+            .card.card-stat.p-4 {{ padding: 0.9rem !important; }}
+            .row.mb-4 > [class^="col-"] {{ margin-bottom: 10px; }}
+
+            .table-responsive {{ overflow-x: visible; font-size: 0.9rem; }}
+            table.responsive-cards thead {{ display: none; }}
+            table.responsive-cards, table.responsive-cards tbody,
+            table.responsive-cards tr, table.responsive-cards td {{ display: block; width: 100%; }}
+            table.responsive-cards tr {{
+                margin-bottom: 12px; border: 1px solid #dee2e6; border-radius: 10px;
+                padding: 4px 10px; background: #fff;
+            }}
+            table.responsive-cards td {{
+                display: flex; justify-content: space-between; align-items: flex-start;
+                gap: 12px; padding: 7px 0; border: 0;
+                border-bottom: 1px solid #f1f3f5; text-align: right;
+            }}
+            table.responsive-cards tr td:last-child {{ border-bottom: 0; }}
+            table.responsive-cards td::before {{
+                content: attr(data-label); font-weight: 600; color: #6c757d;
+                text-align: left; flex: 0 0 38%; font-size: .78rem; white-space: nowrap;
+            }}
+            table.responsive-cards td[data-label=""]::before,
+            table.responsive-cards td:not([data-label])::before {{ content: none; }}
+            table.responsive-cards td.cell-name {{
+                font-size: 1.05rem; text-align: left; padding-top: 10px;
+                flex-wrap: wrap;
+            }}
+            table.responsive-cards td[data-label=""]:last-child {{ justify-content: flex-end; }}
+        }}
     </style>
 </head>
 <body>
     <div class="container-fluid px-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>📈 nikkake-trade - AI Signal & Real Portfolio Dashboard</h2>
-            <div class="d-flex align-items-center">
-                <span id="updateSpinner" class="spinner-border spinner-border-sm text-primary me-2 d-none" role="status"></span>
-                <span id="updateStatusText" class="text-muted me-3 small">10分キャッシュ有効中</span>
-                <button class="btn btn-outline-primary btn-sm me-2" onclick="refreshData(true)">🔄 データ再読み込み (手動更新)</button>
-                <span class="badge bg-primary fs-6">更新: {datetime.now().strftime('%m-%d %H:%M')}</span>
+        <div class="dashboard-header d-flex justify-content-between align-items-center mb-4">
+            <h2 class="mb-0">
+                <span class="d-none d-md-inline">📈 nikkake-trade - AI Signal &amp; Real Portfolio Dashboard</span>
+                <span class="d-md-none">📈 nikkake-trade</span>
+            </h2>
+            <div class="dashboard-actions d-flex align-items-center flex-wrap gap-2">
+                <span id="updateSpinner" class="spinner-border spinner-border-sm text-primary d-none" role="status"></span>
+                <span id="updateStatusText" class="text-muted small">10分キャッシュ有効中</span>
+                <span class="badge bg-primary">更新 {datetime.now().strftime('%m-%d %H:%M')}</span>
+                <button class="btn btn-outline-primary btn-sm" onclick="refreshData(true)">
+                    <span class="d-none d-md-inline">🔄 データ再読み込み (手動更新)</span>
+                    <span class="d-md-none">🔄 更新</span>
+                </button>
             </div>
         </div>
 
-        <ul class="nav nav-tabs mb-4 fs-5" id="myTab" role="tablist">
+        <ul class="nav nav-tabs nav-fill mb-4 fs-5" id="myTab" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="ai-tab" data-bs-toggle="tab" data-bs-target="#ai-panel" type="button" role="tab">🤖 AI推奨シグナル実測成績</button>
+                <button class="nav-link active" id="ai-tab" data-bs-toggle="tab" data-bs-target="#ai-panel" type="button" role="tab">
+                    <span class="d-none d-sm-inline">🤖 AI推奨シグナル実測成績</span>
+                    <span class="d-sm-none">🤖 AI推奨</span>
+                </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="real-tab" data-bs-toggle="tab" data-bs-target="#real-panel" type="button" role="tab">💼 My リアル購入ポートフォリオ</button>
+                <button class="nav-link" id="real-tab" data-bs-toggle="tab" data-bs-target="#real-panel" type="button" role="tab">
+                    <span class="d-none d-sm-inline">💼 My リアル購入ポートフォリオ</span>
+                    <span class="d-sm-none">💼 ポートフォリオ</span>
+                </button>
             </li>
         </ul>
 
         <div class="tab-content" id="myTabContent">
             <!-- タブ1: AI推奨シグナル -->
             <div class="tab-pane fade show active" id="ai-panel" role="tabpanel">
-                <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="panel-header d-flex justify-content-between align-items-center mb-3">
                     <h4>🤖 AI推奨 ＆ 自分で見たい候補銘柄リスト</h4>
                     <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addSignalModal">
                         ➕ 画面から推奨候補銘柄を追加
@@ -739,7 +849,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     </div>
                     <div class="mb-2"><small class="text-muted">選んだ起点の株価と最新株価を比較した損益額(%)を表示します。一括更新すると、その日の終値を開始時株価として取り直します。</small></div>
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle">
+                        <table class="table table-hover align-middle responsive-cards">
                             <thead class="table-light">
                                 <tr>
                                     <th style="width:34px"><input type="checkbox" class="form-check-input" id="aiSelectAll" onchange="toggleSelectAll(this)"></th>
@@ -765,7 +875,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 
             <!-- タブ2: My リアル購入ポートフォリオ -->
             <div class="tab-pane fade" id="real-panel" role="tabpanel">
-                <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="panel-header d-flex justify-content-between align-items-center mb-3">
                     <h4>💼 実際に購入した銘柄リスト</h4>
                     <button class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#addStockModal" onclick="populateRecommendedDropdown()">
                         ➕ 画面から購入銘柄を即時追加
@@ -791,7 +901,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 
                 <div class="card bg-white p-4 card-stat">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle">
+                        <table class="table table-hover align-middle responsive-cards">
                             <thead class="table-light">
                                 <tr>
                                     <th>企業名 (コード)</th>
@@ -818,7 +928,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 
     <!-- 株価チャートモーダル(一覧の行タップで開く) -->
     <div class="modal fade" id="chartModal" tabindex="-1">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-fullscreen-sm-down">
             <div class="modal-content">
                 <div class="modal-header">
                     <div>
@@ -838,7 +948,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 
     <!-- AI推奨候補登録モーダル -->
     <div class="modal fade" id="addSignalModal" tabindex="-1" aria-labelledby="addSignalModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-fullscreen-sm-down">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addSignalModalLabel">➕ 自分で見たい候補銘柄を追加</h5>
@@ -886,7 +996,7 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 
     <!-- リアル購入銘柄登録モーダル（AI推奨銘柄からのワンクリック自動入力機能付き） -->
     <div class="modal fade" id="addStockModal" tabindex="-1" aria-labelledby="addStockModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-fullscreen-sm-down">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addStockModalLabel">➕ 実際に購入した銘柄を追加</h5>
@@ -909,16 +1019,17 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                             <input type="text" class="form-control" id="inputName" placeholder="例: トヨタ自動車">
                         </div>
                         <div class="mb-3">
+                            <label class="form-label">購入日時</label>
+                            <input type="datetime-local" class="form-control" id="inputBuyDate" onchange="syncBuyPriceToDate()" required>
+                        </div>
+                        <div class="mb-3">
                             <label class="form-label">買付単価 (円)</label>
                             <input type="number" step="0.1" class="form-control" id="inputBuyPrice" placeholder="例: 3000" required>
+                            <small class="text-muted" id="buyPriceHint">購入日時を入れると、その日の終値を自動でセットします(手で上書き可)。</small>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">購入株数 (株)</label>
                             <input type="number" class="form-control" id="inputShares" value="100" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">購入日時</label>
-                            <input type="datetime-local" class="form-control" id="inputBuyDate" required>
                         </div>
                     </form>
                 </div>
@@ -1042,9 +1153,37 @@ def generate_html_dashboard(history: list, real_portfolio: list):
             // ここで入れるのは選択時のデフォルト値。あとから手で変更できる。
             document.getElementById('inputTicker').value = code;
             document.getElementById('inputName').value = name;
-            document.getElementById('inputBuyPrice').value = price;
             const localDate = signalDateToLocalInput(date);
-            if (localDate) document.getElementById('inputBuyDate').value = localDate;
+            if (localDate) {{
+                document.getElementById('inputBuyDate').value = localDate;
+                // 買付単価は「その購入日時の終値」に合わせる。取れなければ
+                // 候補の開始時株価をとりあえず入れておく。
+                document.getElementById('inputBuyPrice').value = price || '';
+                syncBuyPriceToDate();
+            }} else {{
+                document.getElementById('inputBuyPrice').value = price || '';
+            }}
+        }}
+
+        // 購入日時からその日(以前で直近の営業日)の終値を引いて買付単価に入れる。
+        async function syncBuyPriceToDate() {{
+            const code = (document.getElementById('inputTicker').value || '').trim();
+            const dateVal = document.getElementById('inputBuyDate').value;
+            const hint = document.getElementById('buyPriceHint');
+            if (!code || !dateVal) return;
+            if (hint) hint.innerText = 'その日の終値を取得中...';
+            try {{
+                const res = await fetch(`/api/close-price?code=${{encodeURIComponent(code)}}&date=${{encodeURIComponent(dateVal)}}`);
+                const data = res.ok ? await res.json() : null;
+                if (data && data.close) {{
+                    document.getElementById('inputBuyPrice').value = data.close;
+                    if (hint) hint.innerText = `${{dateVal.replace('T', ' ')}} 時点の終値 ${{data.close.toLocaleString()}}円をセットしました(手で上書き可)。`;
+                }} else if (hint) {{
+                    hint.innerText = 'その日の終値を取得できませんでした。買付単価は手で入力してください。';
+                }}
+            }} catch (e) {{
+                if (hint) hint.innerText = 'その日の終値を取得できませんでした。買付単価は手で入力してください。';
+            }}
         }}
 
         const PNL_BASIS_SHORT = {{
@@ -1308,22 +1447,22 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 // 決着済み行だけセルが1つ足りず、以降の列が丸ごと左にずれていた。
                 // 決着した銘柄を選んで開始日時を入れ直すのが再追跡の手順なので、
                 // 選択できること自体が必要。
-                const cbCell = `<td><input type="checkbox" class="form-check-input ai-row-check" value="${{item.id || ''}}" onchange="updateSelectedCount()"></td>`;
+                const cbCell = `<td data-label="選択"><input type="checkbox" class="form-check-input ai-row-check" value="${{item.id || ''}}" onchange="updateSelectedCount()"></td>`;
 
                 const rowId = String(item.id || originalIndex);
                 tbody.innerHTML += `
                     <tr class="chart-row" style="cursor:pointer" onclick="if(!event.target.closest('input,button')) openChart('${{rowId}}')" title="タップで株価チャートを表示">
                         ${{cbCell}}
-                        <td>${{sectorTag}}<strong>${{item.name || item.ticker_code || item.ticker}}</strong></td>
-                        <td><span class="badge bg-secondary fs-6">${{item.score || 75}}点</span></td>
-                        <td><strong>${{baseP.toLocaleString()}}円</strong><br><small class="text-muted">(${{(simAmt / 10000).toFixed(1)}}万円)</small></td>
-                        <td>${{priceCol}}</td>
-                        <td><small class="text-success">🎯 ${{targetP.toLocaleString()}}円</small><br><small class="text-danger">🛑 ${{stopP.toLocaleString()}}円</small></td>
-                        <td class="${{retCls}}">${{pnlCol}}</td>
-                        <td>${{statusCol}}</td>
-                        <td><small class="fw-bold">${{dtFormatted}}</small><br><small class="text-muted">${{closedAtFormatted}}</small></td>
-                        <td>${{metricsHTML}}</td>
-                        <td><button class="btn btn-sm btn-outline-danger" onclick="deleteAISignal('${{item.id || originalIndex}}')">削除</button></td>
+                        <td class="cell-name" data-label="">${{sectorTag}}<strong>${{item.name || item.ticker_code || item.ticker}}</strong></td>
+                        <td data-label="スコア"><span class="badge bg-secondary fs-6">${{item.score || 75}}点</span></td>
+                        <td data-label="開始時株価"><strong>${{baseP.toLocaleString()}}円</strong><br><small class="text-muted">(${{(simAmt / 10000).toFixed(1)}}万円)</small></td>
+                        <td data-label="最新/最終株価">${{priceCol}}</td>
+                        <td data-label="利確 / 損切り"><small class="text-success">🎯 ${{targetP.toLocaleString()}}円</small><br><small class="text-danger">🛑 ${{stopP.toLocaleString()}}円</small></td>
+                        <td class="${{retCls}}" data-label="100株損益額 (%)">${{pnlCol}}</td>
+                        <td data-label="ステータス">${{statusCol}}</td>
+                        <td data-label="開始日時 / 決着日時"><small class="fw-bold">${{dtFormatted}}</small><br><small class="text-muted">${{closedAtFormatted}}</small></td>
+                        <td data-label="指標">${{metricsHTML}}</td>
+                        <td data-label=""><button class="btn btn-sm btn-outline-danger" onclick="deleteAISignal('${{item.id || originalIndex}}')">削除</button></td>
                     </tr>
                 `;
             }});
@@ -1398,16 +1537,16 @@ def generate_html_dashboard(history: list, real_portfolio: list):
 
                 tbody.innerHTML += `
                     <tr>
-                        <td><strong>${{item.name || item.ticker}}</strong></td>
-                        <td><span class="badge bg-secondary fs-6">${{item.score || 70}}点</span></td>
-                        <td><strong>${{buyP.toLocaleString()}}円</strong><br><small class="text-muted">(${{(invest / 10000).toFixed(1)}}万円)</small></td>
-                        <td>${{priceCol}}</td>
-                        <td><small class="text-success">🎯 ${{targetP.toLocaleString()}}円</small><br><small class="text-danger">🛑 ${{stopP.toLocaleString()}}円</small></td>
-                        <td class="${{pnlCls}}">${{pnlCol}}</td>
-                        <td>${{statusCol}}</td>
-                        <td><small class="fw-bold">${{bDtFormatted}}</small><br><small class="text-muted">${{closedAtFormatted}}</small></td>
-                        <td>${{metricsHTML}}</td>
-                        <td><button class="btn btn-sm btn-outline-danger" onclick="deleteRealStock('${{itemId}}')">削除</button></td>
+                        <td class="cell-name" data-label=""><strong>${{item.name || item.ticker}}</strong></td>
+                        <td data-label="スコア"><span class="badge bg-secondary fs-6">${{item.score || 70}}点</span></td>
+                        <td data-label="買付単価"><strong>${{buyP.toLocaleString()}}円</strong><br><small class="text-muted">(${{(invest / 10000).toFixed(1)}}万円)</small></td>
+                        <td data-label="最新株価">${{priceCol}}</td>
+                        <td data-label="利確 / 損切り"><small class="text-success">🎯 ${{targetP.toLocaleString()}}円</small><br><small class="text-danger">🛑 ${{stopP.toLocaleString()}}円</small></td>
+                        <td class="${{pnlCls}}" data-label="100株損益額 (%)">${{pnlCol}}</td>
+                        <td data-label="ステータス">${{statusCol}}</td>
+                        <td data-label="購入日時 / 決着日時"><small class="fw-bold">${{bDtFormatted}}</small><br><small class="text-muted">${{closedAtFormatted}}</small></td>
+                        <td data-label="指標">${{metricsHTML}}</td>
+                        <td data-label=""><button class="btn btn-sm btn-outline-danger" onclick="deleteRealStock('${{itemId}}')">削除</button></td>
                     </tr>
                 `;
             }});
@@ -1475,6 +1614,14 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     if (modal) modal.hide();
                     document.getElementById('addSignalForm').reset();
                     renderAIHistory();
+                    // 追加直後は指標がまだ空。サーバのバックグラウンド取得が
+                    // 終わる頃にもう一度描き直す。
+                    isFetchingBackground = true;
+                    renderAIHistory();
+                    setTimeout(async () => {{
+                        isFetchingBackground = false;
+                        await renderAIHistory();
+                    }}, 4000);
                     return;
                 }}
             }} catch(e) {{}}
@@ -1505,6 +1652,14 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                     if (modal) modal.hide();
                     document.getElementById('addStockForm').reset();
                     renderRealPortfolio();
+                    // 追加直後は指標(PER/配当/優待等)がまだ空。サーバ側の
+                    // バックグラウンド取得が終わる頃にもう一度描き直す。
+                    isFetchingBackground = true;
+                    renderRealPortfolio();
+                    setTimeout(async () => {{
+                        isFetchingBackground = false;
+                        await renderRealPortfolio();
+                    }}, 4000);
                     return;
                 }}
             }} catch(e) {{}}
