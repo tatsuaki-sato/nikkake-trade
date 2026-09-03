@@ -1,0 +1,17 @@
+# ローカル開発・動作確認用。
+#   docker compose -f docker-compose.dev.yml up --build
+# ソースをまるごとマウントして uvicorn --reload で起動するので、
+# ファイルを編集すると即座に反映される（本番用 docker-compose.yml は data だけマウント）。
+services:
+  nikkake-trade-dev:
+    build: .
+    container_name: nikkake-trade-dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    command: uvicorn server:app --host 0.0.0.0 --port 8000 --reload

@@ -10,10 +10,17 @@ See [README.md](README.md) for the full spec: scoring formula breakdown, per-wor
 
 ## Commands
 
-Local dev server (also runnable via Docker: `docker-compose up`):
+Local dev server:
 ```bash
-pip install -r requirements.txt
-python server.py          # http://localhost:8000, auto-reloads
+pip install -r requirements.txt   # needs Python 3.10+ (see Dockerfile)
+python server.py                   # http://localhost:8000, auto-reloads
+```
+
+Or in Docker with live reload (mounts the source tree, so edits reflect immediately —
+the production `docker-compose.yml` only mounts `data/` and bakes the code at build time):
+```bash
+docker compose -f docker-compose.dev.yml up --build   # http://localhost:8000
+scripts/smoke_test.sh                                  # route/HTML smoke check against a running server
 ```
 
 Run one of the scheduled jobs manually (each is also its own GitHub Actions workflow):
@@ -29,7 +36,9 @@ Standalone backtest (not wired into the scanner):
 python modules/post_analysis/backtester.py TICKER --hold-days 5 --vol-multiplier 3.0
 ```
 
-There is no test suite, linter, or build step configured in this repo.
+There is no unit-test suite, linter, or build step configured. `scripts/smoke_test.sh` is a
+dependency-free curl check of the HTTP routes and generated-HTML sanity (run it against a
+server started by either method above).
 
 ## Architecture
 
