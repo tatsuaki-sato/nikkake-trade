@@ -503,6 +503,15 @@ def update_signal_performance(force_refresh: bool = False):
 
     save_history(history)
 
+    # 同じ銘柄がAI推奨シグナル側にあれば、その企業名を流用できる
+    # (J-Quantsが一時的に引けない銘柄でも、片方で解決済みなら揃う)。
+    history_names = {}
+    for h in history:
+        h_code = str(h.get("ticker_code") or h.get("ticker") or "").replace(".T", "")
+        h_name = str(h.get("name") or "").strip()
+        if h_code and h_name and h_name.replace(h_code, "").strip():
+            history_names[h_code] = h_name
+
     for item in real_portfolio:
         code = item.get("ticker", "")
         symbol = code + ".T"
@@ -512,6 +521,8 @@ def update_signal_performance(force_refresh: bool = False):
         # ユーザーが手で付けた名前はそのまま残す。
         if code and not str(item.get("name") or "").strip().replace(code, "").strip():
             resolved = get_company_name(code)
+            if resolved == code and code in history_names:
+                resolved = history_names[code]
             if resolved != code:
                 item["name"] = resolved
 

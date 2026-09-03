@@ -1,3 +1,5 @@
+import re as _re
+
 STOCK_NAMES = {
     "7203": "トヨタ自動車",
     "9984": "ソフトバンクグループ",
@@ -38,6 +40,26 @@ def _jquants_name(code: str) -> str:
         pass
     return ""
 
+def _yfinance_name(code: str) -> str:
+    """yfinanceの .info から社名を引く(30日キャッシュ)。J-Quantsが使えない
+    デプロイ環境や、マスタに載っていない新規上場銘柄の保険。多くは英語表記
+    ("Aichi Financial Group, Inc.")だが、コードだけよりは分かる。"""
+    try:
+        from common.cache_manager import get_cached_item, set_cached_item
+        cache_key = f"coname_{code}"
+        cached = get_cached_item(cache_key, ttl_seconds=2592000)
+        if cached is not None:
+            return cached.get("name", "") if isinstance(cached, dict) else (cached or "")
+        import yfinance as yf
+        info = yf.Ticker(f"{code}.T").info or {}
+        name = info.get("longName") or info.get("shortName") or ""
+        if name:
+            name = _re.sub(r",?\s*(Inc|Corp|Co|Ltd|Holdings|Company)\.?$", "", name).strip()
+            set_cached_item(cache_key, {"name": name})
+        return name
+    except Exception:
+        return ""
+
 def get_company_sector(ticker: str) -> str:
     """東証の17業種区分(S17Nm)を返す。例: 「電機・精密」「銀行」「自動車・輸送機」。
 
@@ -67,7 +89,7 @@ def get_company_name(ticker: str) -> str:
     J-Quantsの銘柄マスタを優先し、使えない環境では従来の辞書に落とす。
     """
     code = ticker.replace('.T', '').strip()
-    name = STOCK_NAMES.get(code) or _jquants_name(code)
+    name = STOCK_NAMES.get(code) or _jquants_name(code) or _yfinance_name(code)
     if name:
         return f"{code} {name}"
     return code
