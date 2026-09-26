@@ -9,7 +9,7 @@ modules/post_analysis/universe_rotator.py
   - バッファランク: 上位 BUFFER_IN_RANK 以内で新規IN、
     下位(BUFFER_OUT_RANK位圏外)に落ちて初めてOUT候補。IN/OUT境界を離して回転を抑える。
   - ヒステリシス: OUT候補になっても即除外せず、2週連続で基準を割った銘柄だけ除外する
-    (`data/rotation_state.json` に「何週連続で基準割れか」を記録)。
+    (「何週連続で基準割れか」は watchlist 項目の `strikes` フィールドとしてSupabaseに保存)。
   - セクターキャップ: 業種(S17)ごとに循環枠内の採用数を制限。
 
 位置づけ(2026-08-25確定、docs/decisions.md参照): ウォッチリストは「買うリスト」では
