@@ -6,6 +6,11 @@ import yfinance as yf
 import time
 
 def get_x_sentiment_score(keyword: str) -> int:
+    """Xの投稿から 0〜100 のスコアを返す(50=中立/取得失敗)。
+
+    TYPESAFE_API_KEY があれば Jev で投稿の強気・弱気を判定した強気度、
+    無ければ(または判定できなければ)従来どおりヒット件数ベースの話題度。
+    """
     encoded_keyword = urllib.parse.quote(keyword)
     url = f"https://search.yahoo.co.jp/realtime/search?p={encoded_keyword}"
     headers = {
@@ -15,6 +20,15 @@ def get_x_sentiment_score(keyword: str) -> int:
         response = requests.get(url, headers=headers, timeout=5)
         soup = BeautifulSoup(response.text, 'html.parser')
         tweets = soup.find_all('div', class_='Tweet_body__o3Zjc')
+
+        posts = [t.get_text(" ", strip=True) for t in tweets]
+        posts = [p for p in posts if p]
+        if posts:
+            from modules.post_analysis.jev_sentiment import score_posts
+            jev_score = score_posts(posts, keyword)
+            if jev_score is not None:
+                return jev_score
+
         tweet_count = len(tweets)
         score = min(tweet_count * 10, 100)
         if score == 0:

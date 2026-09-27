@@ -67,7 +67,7 @@ DB操作が実際にJSONへフォールバックした回(=Supabase接続エラ�
 | ボラティリティ・スクイーズ | TTM Squeeze(ボリンジャー×ケルトナー)解除/継続 | 最大+25 |
 | 需給(OBV) | OBVの20日平均超え・出来高急増 | 最大+20 |
 | グローバルマクロ | SOX指数(半導体銘柄)/ドル円(輸出銘柄)/VIX低水準 | 最大+15 |
-| Xセンチメント | Yahoo!リアルタイム検索の話題度スコア×0.1 | 変動 |
+| Xセンチメント | Yahoo!リアルタイム検索のスコア×0.1(`TYPESAFE_API_KEY`があればJevで判定した強気度、無ければ投稿件数ベースの話題度) | 変動 |
 | EDINET開示 | 大量保有報告書(5%ルール)等の検知 | +30 |
 | ATRベースの損益ライン | 目標=終値+3×ATR、損切り=終値−2×ATR (リスクリワード比 約1:1.5) | — |
 
@@ -140,9 +140,10 @@ docker-compose up
 | `LINE_CHANNEL_ACCESS_TOKEN` / `LINE_USER_ID` | LINE通知 | 未設定ならLINE送信スキップ |
 | `JQUANTS_API_KEY` | J-Quants API(ユニバース採点・ファクター・バックテスト) | 未設定だと`universe_rotator`などJ-Quantsを使う処理が動かない |
 | `ANTHROPIC_API_KEY` | ローテーターのIN候補へのLLMカタリスト注記 | 未設定なら注記なしで継続 |
+| `TYPESAFE_API_KEY` | Jev(TypeSafe AI)でXの投稿を強気・弱気に判定し、Xセンチメントを強気度にする | 未設定なら従来どおり投稿件数ベースの話題度 |
 | `DISCORD_WEBHOOK_URL` | Discord通知 | 未設定ならコード内蔵の既定Webhookにフォールバック(要ローテーション、[common/notifier.py](common/notifier.py:11)参照) |
 
-GitHub Actions側は同名のシークレットをリポジトリのSecretsに設定して利用。`SUPABASE_URL`/`SUPABASE_KEY`は全ワークフローに設定(`intraday_alert`はウォッチリストの読み取りのみ)。`JQUANTS_API_KEY`は`daily_scanner`/`prediction`/`universe_rotator`に設定。
+GitHub Actions側は同名のシークレットをリポジトリのSecretsに設定して利用。`SUPABASE_URL`/`SUPABASE_KEY`は全ワークフローに設定(`intraday_alert`はウォッチリストの読み取りのみ)。`JQUANTS_API_KEY`は`daily_scanner`/`prediction`/`universe_rotator`に、`TYPESAFE_API_KEY`は`daily_scanner`/`prediction`に設定。
 
 ## デプロイ
 
