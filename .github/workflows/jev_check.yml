@@ -12,6 +12,7 @@ on:
     paths:
       - 'modules/post_analysis/jev_sentiment.py'
       - 'scripts/jev_check.py'
+      - 'modules/post_analysis/advanced_scraper.py'
 
 jobs:
   check:
