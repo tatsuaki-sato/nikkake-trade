@@ -20,7 +20,7 @@ def get_x_posts(keyword: str) -> list:
     }
     response = requests.get(url, headers=headers, timeout=5)
     soup = BeautifulSoup(response.text, 'html.parser')
-    tweets = soup.find_all('div', class_=_TWEET_BODY_CLASS)
+    tweets = soup.find_all(class_=_TWEET_BODY_CLASS)  # divとは限らない(現在はp等)
     posts = [t.get_text(" ", strip=True) for t in tweets]
     return [p for p in posts if p][:MAX_X_POSTS]
 
