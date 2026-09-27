@@ -45,7 +45,9 @@ def show(label: str, code: str, post: str) -> bool:
 
 def main():
     if not jev_available():
-        sys.exit("TYPESAFE_API_KEY が未設定です")
+        # キー未登録の段階でPRのチェックを赤くしないよう、警告だけ出して終える
+        print("::warning::TYPESAFE_API_KEY が未設定のため Jev チェックをスキップしました")
+        return
 
     print("== 例文での判定 ==")
     ok = all([show(label, code, text) for label, code, text in SAMPLES])
