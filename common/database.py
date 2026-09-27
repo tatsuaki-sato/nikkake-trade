@@ -2,7 +2,7 @@
 common/database.py
 Supabase Python クライアント（REST API）によるデータ永続化
 環境変数:
-  SUPABASE_URL  = https://skfkwditegawcgcdblmi.supabase.co
+  SUPABASE_URL  = https://<project-ref>.supabase.co
   SUPABASE_KEY  = service_role キー（Settings → API → service_role）
 """
 import os

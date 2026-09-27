@@ -9,8 +9,8 @@ def send_discord_notification(message: str):
     """
     webhook_url = os.environ.get("DISCORD_WEBHOOK_URL", "")
     if not webhook_url:
-        # デフォルトのWebhook URL（ローカルテスト用）
-        webhook_url = "https://discord.com/api/webhooks/1532994482772115577/WlKy612PVXUO5tsCt5UA8xTuti1QyQHPN70zmWEHPt9snSF7GvsE6Mw4mUSRWuwe5Dhj"
+        print("DISCORD_WEBHOOK_URL が未設定のため Discord 通知をスキップします")
+        return
         
     headers = {'Content-Type': 'application/json'}
     chunk_size = 1900
