@@ -9,7 +9,9 @@ Supabase `watchlist` テーブル → data/watchlist.json → コード内デフ
 
 各銘柄は dict で保持する:
   ticker   : "7203.T" 形式
-  tier     : "core"(手動固定・循環対象外) / "rotation"(自動循環枠)
+  tier     : 常に "rotation"。以前の "core"(手動固定枠)は 2026-09-27 に廃止し、
+             読み込み時に "rotation" として扱う。入れ替えの対象外になるのは
+             「実際に保有中の銘柄」(リアル購入ポートフォリオ、`get_held_tickers()`)だけ。
   added_at : ISO日付
   reason   : いつ・なぜ入ったか
 """
@@ -23,21 +25,27 @@ WATCHLIST_FILE = os.path.join(
 
 # 従来の固定12銘柄。DBもJSONも無い環境でのフォールバック(挙動の後方互換)。
 DEFAULT_WATCHLIST = [
-    {"ticker": t, "tier": tier, "added_at": "2026-08-22", "reason": "初期固定リスト"}
-    for t, tier in [
-        ("7203.T", "core"), ("8035.T", "core"), ("6758.T", "core"),
-        ("8306.T", "core"), ("9432.T", "core"),
-        ("9984.T", "rotation"), ("6920.T", "rotation"), ("6861.T", "rotation"),
-        ("7974.T", "rotation"), ("4063.T", "rotation"), ("7011.T", "rotation"),
-        ("6857.T", "rotation"),
+    {"ticker": t, "tier": "rotation", "added_at": "2026-08-22", "reason": "初期固定リスト"}
+    for t in [
+        "7203.T", "8035.T", "6758.T", "8306.T", "9432.T",
+        "9984.T", "6920.T", "6861.T", "7974.T", "4063.T", "7011.T", "6857.T",
     ]
 ]
 
 def _use_db() -> bool:
     return bool(os.environ.get("SUPABASE_URL"))
 
+def _normalize(items: list) -> list:
+    """廃止した "core" 枠を含む旧データを "rotation" に揃える"""
+    for i in items:
+        i["tier"] = "rotation"
+    return items
+
 def load_watchlist() -> list:
     """ウォッチリスト全件(dictのリスト)を返す。空にはならない。"""
+    return _normalize(_load_raw())
+
+def _load_raw() -> list:
     if _use_db():
         try:
             from common.database import db_load_watchlist
@@ -75,8 +83,29 @@ def get_target_tickers() -> list:
     """スキャナー用: "7203.T" 形式のティッカー一覧"""
     return [item["ticker"] for item in load_watchlist()]
 
+def get_held_tickers() -> set:
+    """実際に保有中の銘柄(リアル購入ポートフォリオに登録されている銘柄)を
+    "7203.T" 形式で返す。ローテーターはこれらを入れ替え対象外にする。
+
+    ポートフォリオの WIN/LOSS 表示は目標・損切りラインに触れたという判定で、
+    売却したことを意味しないため、ステータスに関係なく登録中なら保有扱い。
+    売ったらユーザーがポートフォリオから削除する運用。"""
+    from common.performance_tracker import load_real_portfolio, db_fallback_occurred
+    portfolio = load_real_portfolio()
+    if db_fallback_occurred():
+        # DB読込に失敗してローカルJSON(CIでは空)に逃げた場合、保有銘柄を
+        # 取りこぼしたまま入れ替えることになるので、呼び出し側に失敗を伝える
+        raise RuntimeError("リアル購入ポートフォリオをDBから読めませんでした")
+    held = set()
+    for p in portfolio:
+        code = str(p.get("ticker", "")).replace(".T", "").strip()
+        if code:
+            held.add(f"{code}.T")
+    return held
+
 def add_ticker(ticker: str, tier: str = "rotation", reason: str = "手動追加") -> list:
-    """1銘柄追加(既存なら何もしない)。更新後の全件を返す。"""
+    """1銘柄追加(既存なら何もしない)。更新後の全件を返す。
+    tier は後方互換のため受け取るが、常に "rotation" として保存する。"""
     if not ticker.endswith(".T"):
         ticker = f"{ticker}.T"
     items = load_watchlist()
@@ -84,7 +113,7 @@ def add_ticker(ticker: str, tier: str = "rotation", reason: str = "手動追加"
         return items
     items.append({
         "ticker": ticker,
-        "tier": tier if tier in ("core", "rotation") else "rotation",
+        "tier": "rotation",
         "added_at": datetime.now().strftime("%Y-%m-%d"),
         "reason": reason,
     })

@@ -32,6 +32,5 @@ jobs:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        # 現時点ではドライラン(通知のみ、ウォッチリストは更新しない)。
-        # ウォークフォワード検証で妥当性を確認してから apply=True に切り替える。
+        # apply=True で実行(ウォッチリストを自動更新)。保有中の銘柄は入れ替え対象外。
         run: python modules/post_analysis/universe_rotator.py
