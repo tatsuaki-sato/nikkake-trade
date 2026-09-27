@@ -4,7 +4,7 @@
 
 ## 概要
 
-固定ウォッチリスト銘柄をスコアリングエンジンで毎日/毎朝スキャンし、条件を満たした銘柄を「AI推奨シグナル」としてOPENで記録する。以後、価格を定期的に取得して評価損益・勝敗(利確/損切り到達)を自動更新し、その結果をダッシュボード(Web)とLINE/Discordで確認できるようにする。ユーザーが実際に購入した銘柄は別枠(「Myリアル購入ポートフォリオ」)で手動登録し、同様に損益を追跡する。
+ウォッチリスト銘柄(手動固定の`core`枠＋週次で自動入れ替えされる`rotation`枠)をスコアリングエンジンで毎日/毎朝スキャンし、条件を満たした銘柄を「AI推奨シグナル」としてOPENで記録する。以後、価格を定期的に取得して評価損益・勝敗(利確/損切り到達)を自動更新し、その結果をダッシュボード(Web)とLINE/Discordで確認できるようにする。ユーザーが実際に購入した銘柄は別枠(「Myリアル購入ポートフォリオ」)で手動登録し、同様に損益を追跡する。
 
 ## アーキテクチャ
 
@@ -15,7 +15,9 @@
 │ ・prediction         │     │ ・GET/POST/DELETE    │
 │ ・daily_scanner      │     │   /api/history        │
 │ ・weekly_performance │     │ ・GET/POST/DELETE    │
-└──────────┬───────────┘     │   /api/portfolio       │
+│ ・universe_rotator   │     │   /api/portfolio       │
+└──────────┬───────────┘     │ ・GET/POST/DELETE    │
+           │                 │   /api/watchlist       │
            │                 │ ・POST /api/refresh    │
            ▼                 └──────────┬────────────┘
    modules/*  (スキャナー本体)            │
@@ -39,9 +41,9 @@
 
 ## データの永続化
 
-Supabaseが正(single source of truth)。`SUPABASE_URL`/`SUPABASE_KEY`は本番(Render)・GitHub Actions(`daily_scanner`/`prediction`/`weekly_performance`、DBに書き込むワークフローのみ)双方にSecretsとして設定済みで、常にDBへ読み書きする。DB操作が例外を投げた場合のみ`data/signal_history.json`/`data/real_portfolio.json`への書き込みにフォールバックする(ローカルで`SUPABASE_URL`未設定のまま動かす場合も同様にこのJSONフォールバックが使われる)。
+Supabaseが正(single source of truth)。`SUPABASE_URL`/`SUPABASE_KEY`は本番(Render)・GitHub Actions(全ワークフロー)双方にSecretsとして設定済みで、常にDBへ読み書きする。DB操作が例外を投げた場合のみ`data/signal_history.json`/`data/real_portfolio.json`への書き込みにフォールバックする(ローカルで`SUPABASE_URL`未設定のまま動かす場合も同様にこのJSONフォールバックが使われる)。
 
-`intraday_alert.yml`は通知専用でデータ永続化を一切行わないため、Supabaseの認証情報を渡していない。
+`intraday_alert.yml`は通知専用でデータ永続化は行わないが、循環後のウォッチリストを読むためにSupabaseの認証情報を渡している。`universe_rotator.yml`はウォッチリスト(`watchlist`テーブル)を書き換える。
 
 `data/cache.json`は上記とは別系統で、常にファイルベースのTTLキャッシュ(マクロ指標・EDINET開示情報などの取得結果をキャッシュし、API叩きすぎを防止)。
 
@@ -85,28 +87,40 @@ cron時刻はUTC表記(括弧内がJST)。
 | `prediction.yml` | 23:00 UTC(08:00 JST) | 朝の「未来予測」。スコア60点以上 かつ (スクイーズ解除 or 強モメンタム or EDINET開示)でシグナル記録 |
 | `daily_scanner.yml` | 06:30 UTC(15:30 JST、大引け後) | 場後の「事後分析」。スコア70点以上でシグナル記録 |
 | `weekly_performance.yml` | 土曜 01:00 UTC(10:00 JST) | 週次勝率レポートをLINE送信 |
+| `universe_rotator.yml` | 日曜 01:00 UTC(10:00 JST) | 東証プライム全銘柄をJ-Quantsのファクターで採点し、ウォッチリストの`rotation`枠を自動で入れ替えてIN/OUTを通知(`core`枠は対象外) |
 
 `daily_scanner`・`prediction`ともに、70点/60点条件を満たす銘柄が1つもなければ「注目テーマTOP3」の代表銘柄をスコア65固定で自動記録するフォールバック動作になっている(ウォッチリストが少ないため、毎日何かしらシグナルが記録される設計)。
 
 `intraday_alert`のみ通知専用でシグナル記録を一切行わない。
 
-対象ウォッチリスト(`daily_scanner.py`/`trend_predictor.py`で共通、コード内に直書き):
-`7203 9984 6920 8035 6861 7974 6758 9432 8306 4063 7011 6857`(ベンチマーク: `1321.T` 日経225連動ETF)
+### ウォッチリスト(スキャン対象)
 
-### なぜ毎回同じ銘柄が記録されるのか
+3つのスキャナー(`daily_scanner`/`prediction`/`intraday_alert`)は共通で`common/watchlist.py`の`get_target_tickers()`から対象銘柄を読む。読み込み元の優先順位は Supabase `watchlist`テーブル → `data/watchlist.json` → コード内デフォルト(旧固定12銘柄)。ベンチマークは`1321.T`(日経225連動ETF)。
 
-市場全体から新規候補を探す仕組みは無く、**候補は常にこの12銘柄+フォールバックの2経路だけ**に限定されているため。
+各銘柄は`tier`を持つ:
 
-1. **スコア条件を満たした場合** — 評価対象自体がこの固定12銘柄のみ(`TARGET_TICKERS`にハードコード)。動的なスクリーニング(出来高上位・値上がり率上位などから毎回対象を選び直す処理)は無いので、スコアが高くなるのも基本的にこの12銘柄の中からだけ。
-2. **条件を満たす銘柄が無い場合のフォールバック** — Kabutanの注目テーマページ(`https://kabutan.jp/theme/`)から取得した「注目テーマTOP3」の代表銘柄をスコア65固定で記録する。ただし半導体・AI関連のような人気テーマは長期間上位に居座りやすく、テーマごとの代表銘柄も株探側のページ構成上少数に固定されがちなので、この経路でも同じ銘柄が繰り返し出やすい。
+- `core` — 手動で固定する枠(初期値は5銘柄: 7203 8035 6758 8306 9432)。自動では一切触らない。
+- `rotation` — 自動循環枠(15銘柄)。`universe_rotator.yml`が毎週日曜に入れ替える。
 
-銘柄の顔ぶれを増やしたい場合は、(a) `TARGET_TICKERS`に銘柄を追加する、(b) 出来高急増・値上がり率上位などから毎回対象を動的に選定するスクリーニング処理を新設する、のいずれかの改修が必要(現状はどちらも未実装)。
+ローテーターのルール(`modules/post_analysis/universe_rotator.py`):
+
+- 東証プライム全銘柄をモメンタム(12-1)・3ヶ月リターン・ROE・PBR・20日ボラで横断採点(`common/factor_engine.py`)。20日平均売買代金5億円未満は除外。
+- 上位20位以内で新規IN、40位圏外に落ちたらOUT候補。OUT候補が2週連続で続いた銘柄だけ除外する(連続週数は各項目の`strikes`フィールドとしてSupabaseに保存)。
+- 業種(S17)ごとに循環枠は最大3銘柄。
+- マクロレジームが`RISK_OFF`の週は新規INを見送る(OUTは通常どおり)。
+
+ウォッチリストは「買うリスト」ではなくスキャンの候補プール。実際にシグナルとして記録されるのは、従来どおりスコア条件(70点/60点)を満たした銘柄だけ。フルバックテストでは「循環銘柄を全部買う戦略」にエッジは確認できていない(経緯は[docs/decisions.md](docs/decisions.md)の2026-08-23/08-25)。
+
+手動で銘柄を足したり外したりするときは`/api/watchlist`を使う(下記)。
 
 ## Web API (`server.py`)
 
-- `GET /` — ダッシュボードHTML(`index.html`)をそのまま返す。裏でバックグラウンド更新をキック。
+- `GET /` — `/candidates`へリダイレクト。
+- `GET /candidates`・`GET /portfolio` — ダッシュボードHTML(`index.html`)を返す(どちらのタブを開くかはフロント側がパスで判断)。裏でバックグラウンド更新をキック。
 - `GET/POST/DELETE /api/history` — AI推奨シグナルのCRUD。POSTは画面から手動で候補銘柄を追加する用(目標/損切りは省略時entry_price×1.06/0.96)。
+- `POST /api/history/bulk-delete`・`POST /api/history/bulk-start-date` — AI推奨シグナルの一括削除・開始日の一括変更。
 - `GET/POST/DELETE /api/portfolio` — 実際に購入した銘柄のCRUD(100株固定ではなく`shares`指定可)。
+- `GET/POST/DELETE /api/watchlist` — スキャン対象ウォッチリストの取得・追加・削除。POSTは`ticker`/`tier`(`core`か`rotation`、既定は`rotation`)/`reason`を受け取る。
 - `POST /api/refresh?force=true|false` — 価格の即時再取得(`force=true`はキャッシュ無視)。
 
 ## セットアップ・ローカル起動
@@ -124,9 +138,11 @@ docker-compose up
 |---|---|---|
 | `SUPABASE_URL` / `SUPABASE_KEY` | Supabase REST接続 | 未設定なら`data/*.json`にフォールバック |
 | `LINE_CHANNEL_ACCESS_TOKEN` / `LINE_USER_ID` | LINE通知 | 未設定ならLINE送信スキップ |
+| `JQUANTS_API_KEY` | J-Quants API(ユニバース採点・ファクター・バックテスト) | 未設定だと`universe_rotator`などJ-Quantsを使う処理が動かない |
+| `ANTHROPIC_API_KEY` | ローテーターのIN候補へのLLMカタリスト注記 | 未設定なら注記なしで継続 |
 | `DISCORD_WEBHOOK_URL` | Discord通知 | 未設定ならコード内蔵の既定Webhookにフォールバック(要ローテーション、[common/notifier.py](common/notifier.py:11)参照) |
 
-GitHub Actions側は同名のシークレットをリポジトリのSecretsに設定して利用。`SUPABASE_URL`/`SUPABASE_KEY`は`daily_scanner`/`prediction`/`weekly_performance`の3ワークフローに設定(`intraday_alert`はデータ永続化をしないため不要)。
+GitHub Actions側は同名のシークレットをリポジトリのSecretsに設定して利用。`SUPABASE_URL`/`SUPABASE_KEY`は全ワークフローに設定(`intraday_alert`はウォッチリストの読み取りのみ)。`JQUANTS_API_KEY`は`daily_scanner`/`prediction`/`universe_rotator`に設定。
 
 ## デプロイ
 

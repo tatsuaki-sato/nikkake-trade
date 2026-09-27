@@ -4,12 +4,13 @@ cronジョブやデプロイで何かおかしくなったときに見る場所�
 
 ## GitHub Actions が失敗したとき
 
-対象ワークフロー: `.github/workflows/{intraday_alert,prediction,daily_scanner,weekly_performance}.yml`
+対象ワークフロー: `.github/workflows/{intraday_alert,prediction,daily_scanner,weekly_performance,universe_rotator}.yml`
 
 1. Actionsタブでどのステップで落ちたか確認。
 2. `yfinance`関連のエラー(価格取得失敗)なら、Yahoo Finance側のレート制限/一時障害の可能性が高い。再実行(re-run)で直ることが多い。
 3. Supabase関連のエラーが出ていても、`common/performance_tracker.py`はDB操作を try/except で囲み `data/*.json` にフォールバックする設計なので、ジョブ自体は継続するはず。ワークフローが完全に失敗している場合はフォールバック側にもバグがある可能性がある。
-4. LINE/Discord通知が来ないだけでジョブ自体は成功している場合、下記「通知系のトークン切れ」を確認。
+4. LINE/Discord通知が来ないだけでジョブ自体は成功している場合、下記「通知が来なくなったとき」を確認。
+5. `universe_rotator`が落ちた場合は、J-Quants側(`JQUANTS_API_KEY`の失効・プラン変更、429の多発)を疑う。`common/market_data.py`は429を自動リトライするが、それでも落ちるならレート上限(`JQUANTS_RATE_LIMIT_PER_MIN`)を下げる。失敗した週はウォッチリストが更新されないだけで、スキャナーは前週のリストのまま動く。
 
 ## 通知が来なくなったとき
 
@@ -31,9 +32,18 @@ cronジョブやデプロイで何かおかしくなったときに見る場所�
 - ダッシュボードのデータが急に古い/空に見える場合、Supabase側の接続エラーでフォールバックに切り替わっている可能性がある。Render.comのログでSupabase関連の例外が出ていないか確認する。
 - ローカル開発時は`SUPABASE_URL`を意図的に未設定にすればJSONファイルのみで動く。
 
-## 土曜日の自動コミットでローカルが競合する
+## ウォッチリストの入れ替えがおかしいとき
 
-`weekly_performance.yml`(土曜 10:00 JST)は`data/signal_history.json`と`dashboard.html`を`main`に直接pushする(`[skip ci]`)。土曜日以降にローカルの`main`で作業する前は`git pull`してから始める。コンフリクトした場合、生成物(`dashboard.html`/`index.html`)側はリモートを正として扱ってよい(どうせ次の実行で再生成される)。
+`universe_rotator.yml`(日曜 10:00 JST)は`apply=True`で`rotation`枠を自動で書き換える(`core`枠は触らない)。
+
+- 何が入れ替わったかは、その回の通知(IN/OUT/猶予の一覧)で確認できる。現在のリストは`GET /api/watchlist`。
+- 残したい銘柄が外れた場合は、`POST /api/watchlist`で`tier: core`として入れ直せば以後は自動で外れない。
+- 連続基準割れの週数は各項目の`strikes`フィールドに保存されている。手でリストをいじるときはこの値も意識する。
+- ローテーションをいったん止めたいときは、Actionsタブで`Universe Rotator`ワークフローを無効化する(`modules/post_analysis/universe_rotator.py`末尾の`apply=True`を`False`にすれば通知のみのドライランに戻る)。
+
+## `main`は自動では動かない
+
+以前は`weekly_performance.yml`が土曜に`data/signal_history.json`と`dashboard.html`を`main`へ直接pushしていたが、Supabaseを正にした時点でそのステップは削除した。今は`main`を動かすのは人のコミットだけなので、土曜日を気にせず作業してよい。リポジトリ内の`data/*.json`はその頃の古いスナップショットで、ローカルでSupabase未設定のまま動かすときのフォールバック先でしかない。
 
 ## 環境変数が正しく読まれているか確認する
 
