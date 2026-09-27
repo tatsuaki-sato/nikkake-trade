@@ -12,10 +12,7 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import requests
-from bs4 import BeautifulSoup
-import urllib.parse
-
+from modules.post_analysis.advanced_scraper import get_x_posts
 from modules.post_analysis.jev_sentiment import jev_available, _judge_post, score_posts
 
 SAMPLES = [
@@ -24,22 +21,6 @@ SAMPLES = [
     ("中立", "7203", "7203 本日の終値は2,950円、出来高は前日並み"),
     ("無関係", "7203", "今日のランチは7203円のコースでした。美味しかった"),
 ]
-
-
-def fetch_posts(code: str) -> list:
-    url = f"https://search.yahoo.co.jp/realtime/search?p={urllib.parse.quote(code)}"
-    res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
-    soup = BeautifulSoup(res.text, "html.parser")
-    # 取得0件の原因調査用: 応答と、投稿本文らしきクラス名の候補を出す
-    import re, collections
-    classes = collections.Counter(
-        c for tag in soup.find_all(class_=True) for c in tag.get("class", [])
-        if re.search(r"tweet|body|post|text", c, re.I))
-    print(f"  HTTP {res.status_code} / {len(res.text)}文字 / title={soup.title.string if soup.title else None}")
-    print(f"  クラス候補: {classes.most_common(15)}")
-    nd = soup.find("script", id="__NEXT_DATA__")
-    print(f"  __NEXT_DATA__: {len(nd.string) if nd and nd.string else 0}文字")
-    return [t.get_text(" ", strip=True) for t in soup.find_all("div", class_="Tweet_body__o3Zjc")]
 
 
 def show(label: str, code: str, post: str) -> bool:
@@ -66,7 +47,7 @@ def main():
     codes = sys.argv[1:] or ["7203", "6758", "9984"]
     for code in codes:
         print(f"\n== 実投稿: {code} ==")
-        posts = [p for p in fetch_posts(code) if p]
+        posts = get_x_posts(code)
         print(f"  取得 {len(posts)}件 (件数ベースなら {min(len(posts) * 10, 100) or 50})")
         for p in posts:
             show("投稿", code, p)
