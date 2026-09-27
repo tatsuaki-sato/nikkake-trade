@@ -769,6 +769,11 @@ def generate_html_dashboard(history: list, real_portfolio: list):
                 flex-wrap: wrap;
             }}
             table.responsive-cards td[data-label=""]:last-child {{ justify-content: flex-end; }}
+            /* flex の子は既定で min-width:auto なので、長い中身(テーマ名のバッジは
+               Bootstrap が nowrap にしている)があるとカードの右へはみ出す。
+               縮めて折り返せるようにする。 */
+            table.responsive-cards td > * {{ min-width: 0; overflow-wrap: anywhere; }}
+            table.responsive-cards td .badge {{ white-space: normal; text-align: left; }}
         }}
     </style>
 </head>
