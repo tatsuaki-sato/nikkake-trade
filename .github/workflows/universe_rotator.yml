@@ -32,6 +32,6 @@ jobs:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        # 現時点ではドライラン(通知のみ、ウォッチリストは更新しない)。
-        # ウォークフォワード検証で妥当性を確認してから apply=True に切り替える。
+        # apply=True で実行(2026-08-25〜、docs/decisions.md参照)。rotation 枠を自動で入れ替え、
+        # IN/OUT を通知する。core 枠は触らない。
         run: python modules/post_analysis/universe_rotator.py
