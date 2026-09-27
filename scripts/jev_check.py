@@ -30,6 +30,15 @@ def fetch_posts(code: str) -> list:
     url = f"https://search.yahoo.co.jp/realtime/search?p={urllib.parse.quote(code)}"
     res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
     soup = BeautifulSoup(res.text, "html.parser")
+    # 取得0件の原因調査用: 応答と、投稿本文らしきクラス名の候補を出す
+    import re, collections
+    classes = collections.Counter(
+        c for tag in soup.find_all(class_=True) for c in tag.get("class", [])
+        if re.search(r"tweet|body|post|text", c, re.I))
+    print(f"  HTTP {res.status_code} / {len(res.text)}文字 / title={soup.title.string if soup.title else None}")
+    print(f"  クラス候補: {classes.most_common(15)}")
+    nd = soup.find("script", id="__NEXT_DATA__")
+    print(f"  __NEXT_DATA__: {len(nd.string) if nd and nd.string else 0}文字")
     return [t.get_text(" ", strip=True) for t in soup.find_all("div", class_="Tweet_body__o3Zjc")]
 
 
