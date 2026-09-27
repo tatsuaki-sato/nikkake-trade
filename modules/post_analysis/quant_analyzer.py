@@ -82,7 +82,7 @@ def evaluate_quant_factors(stock_df: pd.DataFrame, market_df: pd.DataFrame, tick
     # 5. X センチメント
     sentiment_score = int(x_sentiment_score * 0.10)
     score += sentiment_score
-    details['Social_Sentiment'] = f"X話題度スコア ({x_sentiment_score}) [+{sentiment_score}点]"
+    details['Social_Sentiment'] = f"Xセンチメント ({x_sentiment_score}) [+{sentiment_score}点]"
 
     # 6. EDINET ボーナス
     if edinet_info["has_5percent_report"]:

@@ -5,18 +5,41 @@ import urllib.parse
 import yfinance as yf
 import time
 
-def get_x_sentiment_score(keyword: str) -> int:
+# Yahoo!リアルタイム検索の投稿本文のdiv。クラス名末尾のハッシュ(例: Tweet_body__3tH8T)は
+# サイト更新で変わる(旧 Tweet_body__o3Zjc のまま0件になっていた)ので前方一致で拾う
+_TWEET_BODY_CLASS = re.compile(r"^Tweet_body__")
+MAX_X_POSTS = 20
+
+
+def get_x_posts(keyword: str) -> list:
+    """Yahoo!リアルタイム検索から keyword の最新投稿本文を最大 MAX_X_POSTS 件返す。"""
     encoded_keyword = urllib.parse.quote(keyword)
     url = f"https://search.yahoo.co.jp/realtime/search?p={encoded_keyword}"
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
+    response = requests.get(url, headers=headers, timeout=5)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    tweets = soup.find_all(class_=_TWEET_BODY_CLASS)  # divとは限らない(現在はp等)
+    posts = [t.get_text(" ", strip=True) for t in tweets]
+    return [p for p in posts if p][:MAX_X_POSTS]
+
+
+def get_x_sentiment_score(keyword: str) -> int:
+    """Xの投稿から 0〜100 のスコアを返す(50=中立/取得失敗)。
+
+    TYPESAFE_API_KEY があれば Jev で投稿の強気・弱気を判定した強気度、
+    無ければ(または判定できなければ)従来どおりヒット件数ベースの話題度。
+    """
     try:
-        response = requests.get(url, headers=headers, timeout=5)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        tweets = soup.find_all('div', class_='Tweet_body__o3Zjc')
-        tweet_count = len(tweets)
-        score = min(tweet_count * 10, 100)
+        posts = get_x_posts(keyword)
+        if posts:
+            from modules.post_analysis.jev_sentiment import score_posts
+            jev_score = score_posts(posts, keyword)
+            if jev_score is not None:
+                return jev_score
+
+        score = min(len(posts) * 10, 100)
         if score == 0:
             score = 50
         return score

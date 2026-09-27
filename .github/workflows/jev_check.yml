@@ -1,0 +1,30 @@
+name: Jev Sentiment Check
+
+# Jev(TypeSafe AI)の判定を目視確認する。DB書き込み・通知はしない。
+on:
+  workflow_dispatch:
+    inputs:
+      codes:
+        description: '確認する銘柄コード(空白区切り)'
+        required: false
+        default: '7203 6758 9984'
+  pull_request:
+    paths:
+      - 'modules/post_analysis/jev_sentiment.py'
+      - 'scripts/jev_check.py'
+      - 'modules/post_analysis/advanced_scraper.py'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - name: Run Jev check
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: python scripts/jev_check.py ${{ github.event.inputs.codes }}

@@ -31,4 +31,5 @@ jobs:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}  # Jev によるXセンチメント判定用
         run: python modules/post_analysis/daily_scanner.py
