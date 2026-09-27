@@ -176,7 +176,7 @@
 
 ### ウォッチリスト
 
-スキャナー(`daily_scanner` / `prediction`)が評価する銘柄の一覧。各要素は `{ticker, tier, added_at, reason}`。`tier` は `core`(固定、自動循環の対象外)か `rotation`(`universe_rotator` による入れ替え対象)。
+スキャナー(`daily_scanner` / `prediction`)が評価する銘柄の一覧。各要素は `{ticker, tier, added_at, reason}`。`tier` は常に `rotation`(旧データの `core` も読み込み時に `rotation` として返る)。`universe_rotator` の入れ替え対象外は、リアル購入ポートフォリオに登録中の銘柄だけ。
 
 #### `GET /api/watchlist`
 全銘柄の配列。
@@ -185,7 +185,7 @@
 ```json
 { "ticker": "7203", "tier": "rotation", "reason": "手動追加" }
 ```
-`.T` は無ければ付与される。既に登録済みなら何もしない。`tier` が `core`/`rotation` 以外なら `rotation` 扱い。レスポンス: `{"status": "ok", "watchlist": [...]}`。
+`.T` は無ければ付与される。既に登録済みなら何もしない。`tier` を送っても常に `rotation` として保存される(core枠は2026-09-27に廃止)。レスポンス: `{"status": "ok", "watchlist": [...]}`。
 
 #### `DELETE /api/watchlist/{ticker}`
 該当銘柄を削除し、更新後の全件を返す。
