@@ -13,7 +13,9 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from modules.post_analysis.advanced_scraper import get_x_posts
-from modules.post_analysis.jev_sentiment import jev_available, _judge_post, is_usable, score_posts
+import time
+
+from modules.post_analysis.jev_sentiment import jev_available, _judge_post, is_usable, score_posts, get_stats
 
 SAMPLES = [
     ("強気", "7203", "トヨタ、決算で上方修正きた！増配もあるしまだまだ上がる。押し目は全力買い"),
@@ -52,7 +54,13 @@ def main():
         print(f"  取得 {len(posts)}件 (件数ベースなら {min(len(posts) * 10, 100) or 50})")
         for p in dict.fromkeys(posts):
             show("投稿", code, p)
-        print(f"  → 集計スコア: {score_posts(posts, code)}")
+        t0 = time.monotonic()
+        result = score_posts(posts, code)
+        print(f"  → 集計スコア: {result} (本番と同じ並列5本での所要 {time.monotonic() - t0:.1f}秒)")
+
+    st = get_stats()
+    print(f"\n== Jev 呼び出し統計 ==\n  {st['calls']}件 / 失敗 {st['failures']}件 {st['errors']}"
+          f" / 1件あたり平均 {st['avg_sec']:.2f}秒・最大 {st['max_sec']:.2f}秒")
 
 
 if __name__ == "__main__":

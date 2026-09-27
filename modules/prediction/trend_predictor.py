@@ -192,3 +192,5 @@ def run_predictor():
 
 if __name__ == "__main__":
     run_predictor()
+    from modules.post_analysis.jev_sentiment import notify_failures
+    notify_failures("8:00 トレンド予測")

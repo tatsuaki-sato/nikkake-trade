@@ -18,6 +18,9 @@ None を返し、呼び出し側は従来の件数ベースのスコアにフォ
 1銘柄10投稿でも 0.02円程度。
 """
 import os
+import threading
+import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
 import requests
@@ -36,6 +39,51 @@ SENTIMENT_LEVELS = [
     "やや強気: 期待感、押し目買いの検討",
     "強い強気: 買い推奨、上昇・好材料を強調",
 ]
+
+
+# 1回のジョブ実行中の呼び出し統計(失敗時のLINE通知と所要時間の確認用)
+_stats_lock = threading.Lock()
+_stats = {"calls": 0, "failures": 0, "errors": Counter(), "latencies": []}
+
+
+def _record(latency: float, error: str | None):
+    with _stats_lock:
+        _stats["calls"] += 1
+        _stats["latencies"].append(latency)
+        if error:
+            _stats["failures"] += 1
+            _stats["errors"][error] += 1
+
+
+def get_stats() -> dict:
+    with _stats_lock:
+        lat = sorted(_stats["latencies"])
+        return {
+            "calls": _stats["calls"],
+            "failures": _stats["failures"],
+            "errors": dict(_stats["errors"]),
+            "avg_sec": sum(lat) / len(lat) if lat else 0.0,
+            "max_sec": lat[-1] if lat else 0.0,
+        }
+
+
+def notify_failures(job_name: str):
+    """ジョブ中に Jev の呼び出しが1件でも失敗していたら LINE に1通だけ知らせる。"""
+    st = get_stats()
+    print(f"[jev_sentiment] 呼び出し {st['calls']}件 / 失敗 {st['failures']}件 / "
+          f"平均 {st['avg_sec']:.2f}秒 / 最大 {st['max_sec']:.2f}秒")
+    if st["failures"] == 0:
+        return
+    errors = "、".join(f"{k}×{v}" for k, v in sorted(st["errors"].items(), key=lambda x: -x[1]))
+    msg = (f"⚠️ 【Jev判定エラー】{job_name}\n"
+           f"失敗 {st['failures']} / {st['calls']}件 ({errors})\n"
+           f"判定できた投稿だけで採点し、全件失敗した銘柄は件数ベースにしました。"
+           f"401ならAPIキー(GitHub Secretsの TYPESAFE_API_KEY)、429ならレート制限を確認してください。")
+    try:
+        from common.notifier import notify
+        notify(msg)
+    except Exception as e:
+        print(f"[jev_sentiment] 失敗通知の送信エラー: {e}")
 
 
 def jev_available() -> bool:
@@ -64,20 +112,29 @@ def _judge_post(post: str, keyword: str) -> dict | None:
         },
     }
     headers = {"Authorization": f"Bearer {os.environ['TYPESAFE_API_KEY']}"}
+    started = time.monotonic()
     try:
         res = requests.post(API_URL, json=body, headers=headers, timeout=10)
         if res.status_code != 200:
             print(f"[jev_sentiment] APIエラー({res.status_code})")
+            _record(time.monotonic() - started, f"HTTP {res.status_code}")
             return None
         answers = res.json().get("answers", {})
-        return {
+        result = {
             "relevance": float(answers["relevant"]["noul"]),
             "spam": float(answers["spam"]["noul"]),
             "score": float(answers["sentiment"]["score"]),
             "confidence": float(answers["sentiment"]["confidence"]),
         }
+        _record(time.monotonic() - started, None)
+        return result
+    except requests.Timeout:
+        print("[jev_sentiment] タイムアウト")
+        _record(time.monotonic() - started, "タイムアウト")
+        return None
     except Exception as e:
         print(f"[jev_sentiment] 判定エラー: {e}")
+        _record(time.monotonic() - started, type(e).__name__)
         return None
 
 

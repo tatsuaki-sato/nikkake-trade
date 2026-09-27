@@ -190,3 +190,5 @@ def run_daily_scanner():
 
 if __name__ == "__main__":
     run_daily_scanner()
+    from modules.post_analysis.jev_sentiment import notify_failures
+    notify_failures("15:30 デイリースキャン")
